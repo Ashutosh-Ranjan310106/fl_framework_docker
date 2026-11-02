@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flower Federated Learning Security & Benchmarking Console</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <header class="top-nav">
+        <div class="nav-brand">
+            <span class="logo-icon">🌸</span>
+            <div class="brand-text">
+                <h1>Flower FL Operations Console</h1>
+                <span class="subtext">Federated Learning Infrastructure & Live Telemetry</span>
+            </div>
+        </div>
+        <div class="nav-status">
+            <div class="status-indicator">
+                <span id="ws-status-dot" class="dot disconnected"></span>
+                <span id="ws-status-text">Connecting...</span>
+            </div>
+            <div class="exp-badge">
+                <span class="label">EXP:</span>
+                <span id="exp-id-display" class="val">cifar10_baseline_001</span>
+                <span id="exp-status-pill" class="pill idle">IDLE</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="dashboard-container">
+        <!-- 1. SUMMARY METRICS CARDS -->
+        <section class="summary-grid">
+            <div class="metric-card">
+                <div class="metric-label">Experiment Status</div>
+                <div id="stat-exp-status" class="metric-value">IDLE</div>
+                <div class="metric-footnote" id="stat-strategy-name">Strategy: FedAvg</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Current Round</div>
+                <div id="stat-current-round" class="metric-value">0 / 3</div>
+                <div class="progress-bar-container">
+                    <div id="round-progress-bar" class="progress-bar" style="width: 0%;"></div>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Client Participation</div>
+                <div id="stat-clients-count" class="metric-value">0 / 3</div>
+                <div class="metric-footnote"><span id="stat-active-clients">0</span> Active | <span id="stat-completed-clients">0</span> Done</div>
+            </div>
+            <div class="metric-card highlight-green">
+                <div class="metric-label">Global Accuracy</div>
+                <div id="stat-global-accuracy" class="metric-value">-- %</div>
+                <div class="metric-footnote" id="stat-acc-footnote">Evaluated on test set</div>
+            </div>
+            <div class="metric-card highlight-orange">
+                <div class="metric-label">Global Loss</div>
+                <div id="stat-global-loss" class="metric-value">--</div>
+                <div class="metric-footnote" id="stat-loss-footnote">Cross-Entropy</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">System Resources</div>
+                <div class="resource-mini-bars">
+                    <div class="mini-row">
+                        <span>CPU:</span>
+                        <div class="bar-bg"><div id="host-cpu-bar" class="bar-fill" style="width: 0%;"></div></div>
+                        <span id="host-cpu-val">0%</span>
+                    </div>
+                    <div class="mini-row">
+                        <span>RAM:</span>
+                        <div class="bar-bg"><div id="host-ram-bar" class="bar-fill" style="width: 0%;"></div></div>
+                        <span id="host-ram-val">0%</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. CHARTS SECTION -->
+        <section class="charts-grid">
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>Global Model Metrics Over Rounds</h2>
+                    <span class="panel-subtitle">Accuracy (%) & Loss</span>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="globalMetricsChart"></canvas>
+                </div>
+            </div>
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>Local Client Loss Comparison</h2>
+                    <span class="panel-subtitle">Training Loss Per Participant</span>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="clientLossChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. ROUND LIFECYCLE WINDOW -->
+        <section class="panel">
+            <div class="panel-header">
+                <h2>Federated Round Lifecycles</h2>
+                <span class="panel-subtitle">Stage Transitions: Distribution &rarr; Training &rarr; Updates &rarr; Aggregation &rarr; Evaluation</span>
+            </div>
+            <div id="rounds-lifecycle-container" class="rounds-container">
+                <div class="empty-state">Waiting for federated rounds to start...</div>
+            </div>
+        </section>
+
+        <!-- 4. CLIENTS SECTION -->
+        <section class="panel">
+            <div class="panel-header">
+                <h2>Federated Clients Telemetry</h2>
+                <span class="panel-subtitle">Individual client training metrics and hardware footprint</span>
+            </div>
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Client ID</th>
+                            <th>Role</th>
+                            <th>Status</th>
+                            <th>Round</th>
+                            <th>Dataset Size</th>
+                            <th>Local Loss</th>
+                            <th>Local Accuracy</th>
+                            <th>CPU</th>
+                            <th>RAM</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="clients-table-body">
+                        <tr>
+                            <td colspan="10" class="empty-state">No clients registered yet.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- 5. EVENT FEED & AUDIT LOG -->
+        <section class="panel">
+            <div class="panel-header flex-between">
+                <div>
+                    <h2>Live Chronological Event Feed</h2>
+                    <span class="panel-subtitle">Real-time telemetry stream across server, clients, and monitor</span>
+                </div>
+                <div class="event-filters">
+                    <select id="filter-severity" class="filter-select">
+                        <option value="">All Severities</option>
+                        <option value="INFO">INFO</option>
+                        <option value="SUCCESS">SUCCESS</option>
+                        <option value="WARNING">WARNING</option>
+                        <option value="ERROR">ERROR</option>
+                    </select>
+                    <select id="filter-client" class="filter-select">
+                        <option value="">All Clients</option>
+                        <option value="client_001">client_001</option>
+                        <option value="client_002">client_002</option>
+                        <option value="client_003">client_003</option>
+                    </select>
+                    <button id="clear-events-btn" class="btn-secondary">Clear Filter</button>
+                </div>
+            </div>
+            <div id="event-feed-container" class="event-feed">
+                <div class="empty-state">No events received yet.</div>
+            </div>
+        </section>
+    </main>
+
+    <!-- CLIENT DETAILS MODAL -->
+    <div id="client-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 id="modal-client-title">Client Details: client_001</h3>
+                <button id="modal-close-btn" class="btn-close">&times;</button>
+            </div>
+            <div class="modal-body" id="modal-client-body">
+                <!-- Dynamically populated -->
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/dashboard.js"></script>
+</body>
+</html>

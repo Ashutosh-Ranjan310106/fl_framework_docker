@@ -1,0 +1,33 @@
+{
+    "dataset": "CIFAR-10",
+    "status": "DOWNLOADED",
+    "train_samples": 50000,
+    "test_samples": 10000,
+    "download_timestamp": "2026-10-31T19:08:35.815108",
+    "last_verified_timestamp": "2026-10-31T19:08:35.815108",
+    "integrity_verified": true,
+    "files": {
+        "train": {
+            "path": "C:\\Users\\rrpra\\Documents\\Github\\fl_framework_docker\\datasets\\original\\cifar10\\train\\data.pt",
+            "sha256": "a0bf64d4351ec0940d4dd98c1203eb20b1a32fe0e6cd7327fa612856aea9186d",
+            "sample_count": 50000
+        },
+        "test": {
+            "path": "C:\\Users\\rrpra\\Documents\\Github\\fl_framework_docker\\datasets\\original\\cifar10\\test\\data.pt",
+            "sha256": "64039517255a9abc68ec00f944b751df4698ecef3fa334cb8de62609b483ba18",
+            "sample_count": 10000
+        }
+    },
+    "class_names": [
+        "airplane",
+        "automobile",
+        "bird",
+        "cat",
+        "deer",
+        "dog",
+        "frog",
+        "horse",
+        "ship",
+        "truck"
+    ]
+}

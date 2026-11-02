@@ -1,0 +1,66 @@
+# Default Configuration for CIFAR-10 Federated Learning Dataset Manager
+
+dataset:
+  name: "CIFAR-10"
+  num_classes: 10
+  image_shape: [3, 32, 32]
+  total_train_samples: 50000
+  total_test_samples: 10000
+  class_names:
+    - "airplane"
+    - "automobile"
+    - "bird"
+    - "cat"
+    - "deer"
+    - "dog"
+    - "frog"
+    - "horse"
+    - "ship"
+    - "truck"
+
+reproducibility:
+  random_seed: 42
+
+partitioning:
+  default_strategy: "iid"
+  num_clients: 10
+  
+  strategies:
+    iid:
+      description: "Uniform random distribution of samples equally among clients."
+      params: {}
+
+    dirichlet:
+      description: "Non-IID distribution sampled from Dirichlet distribution across classes."
+      params:
+        alpha: 0.5
+        available_alphas: [0.1, 0.3, 0.5, 1.0, 10.0]
+
+    label_skew:
+      description: "Non-IID distribution where clients receive samples from a fixed number of classes."
+      params:
+        classes_per_client: 2
+
+    quantity_skew:
+      description: "Clients receive different quantities of samples while allocating all 50,000 training samples."
+      params:
+        min_samples_per_client: 1000
+        max_samples_per_client: 9000
+
+    custom:
+      description: "User-defined sample count and/or class distribution per client."
+      params: {}
+
+storage:
+  base_dir: "datasets"
+  original_dir: "datasets/original/cifar10"
+  partitions_dir: "datasets/partitions/cifar10"
+  metadata_dir: "datasets/metadata"
+  registry_file: "datasets/metadata/dataset_registry.json"
+
+validation:
+  strict_total_count: true
+  verify_file_checksums: true
+  expected_channels: 3
+  expected_height: 32
+  expected_width: 32

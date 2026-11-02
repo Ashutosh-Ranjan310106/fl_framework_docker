@@ -1,0 +1,18 @@
+client:
+  id: "client_001"
+  role: "honest"
+  partition_path: "/app/data"
+
+server:
+  address: "server:8080"
+
+monitoring:
+  url: "http://monitor:8000"
+  enabled: true
+
+training:
+  local_epochs: 2
+  batch_size: 32
+  learning_rate: 0.001
+  optimizer: "adam"
+  device: "cpu"

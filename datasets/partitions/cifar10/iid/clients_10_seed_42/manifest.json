@@ -1,0 +1,265 @@
+{
+    "dataset": "CIFAR-10",
+    "partition_strategy": "iid",
+    "num_clients": 10,
+    "random_seed": 42,
+    "strategy_params": {},
+    "total_train_samples": 50000,
+    "total_test_samples": 10000,
+    "total_allocated_samples": 50000,
+    "num_classes": 10,
+    "class_names": [
+        "airplane",
+        "automobile",
+        "bird",
+        "cat",
+        "deer",
+        "dog",
+        "frog",
+        "horse",
+        "ship",
+        "truck"
+    ],
+    "creation_timestamp": "2026-10-31T19:08:47.583012",
+    "dataset_fingerprint": "a0bf64d4351ec0940d4dd98c1203eb20b1a32fe0e6cd7327fa612856aea9186d",
+    "partition_config_fingerprint": "092b130b9e89381aace5e07102898cf237a527196aadf96272a58222a7c3920e",
+    "min_samples_per_client": 5000,
+    "max_samples_per_client": 5000,
+    "avg_samples_per_client": 5000.0,
+    "partition_file_checksums": {
+        "client_001/data.pt": "baf290d1dfab262c977cdd43b8da5c360970cc56a27ee9917a7d1c0ba7cd45f6",
+        "client_002/data.pt": "ec2ff7c5fc6f966607a6e2f4f79dbad5a0314411c451c202ed13f00637142ba8",
+        "client_003/data.pt": "a40e929f6518a3dd5147d27ae9efec676cf7599b2c417e551b466f9dbb399233",
+        "client_004/data.pt": "7d3d8bcaa937fbbfbf79cdbb23eb4b3a9ced54de4810b41b5c5ff5b81b676ad7",
+        "client_005/data.pt": "8f934df99a0b6ecc5eb2a3258b78a72e02efbc50c9bbdf3086200cf8d06e8788",
+        "client_006/data.pt": "34e7d094543280f25053a013db6f9a5f4c484b008d241464c8d4e4c5c1fe6079",
+        "client_007/data.pt": "e7c3ecb7e5ea861af6fee0cce52d460d2c81c200ed787385f9997c81ab54cba0",
+        "client_008/data.pt": "d32d062cb5934bfb2a09132105c64230b34b172f03fe3faa92acbccce32d91ec",
+        "client_009/data.pt": "d1eae90ed2919296f1896f6694508f3676398c54cabd1aa13b036662d36dec59",
+        "client_010/data.pt": "33128a206b6411df4c7da6acfc813a13cd59ca2d36228a0131a5250d3ab073f6"
+    },
+    "validation_results": {
+        "is_valid": true,
+        "checks_passed": [
+            "9. All partition files can be loaded successfully.",
+            "7. Each client has a valid, non-empty dataset.",
+            "6. Images have the expected dimensions and channels (3, 32, 32).",
+            "5. Every label is between 0 and 9.",
+            "10. All stored sample indices are valid within [0, 49999].",
+            "8. Total number of allocated samples equals 50000.",
+            "2. No sample is duplicated across clients.",
+            "1. Every training sample is allocated exactly once.",
+            "3. No training sample is missing.",
+            "4. No test samples appear in training partitions (original test set kept separate)."
+        ],
+        "errors": [],
+        "warnings": [
+            "manifest.json not found in partition directory."
+        ],
+        "total_clients": 10,
+        "total_allocated_samples": 50000,
+        "timestamp": "2026-10-31T19:08:47.581945"
+    },
+    "client_partitions": {
+        "client_001": {
+            "client_id": "client_001",
+            "sample_count": 5000,
+            "partition_path": "client_001/data.pt",
+            "class_distribution": {
+                "airplane": 473,
+                "automobile": 542,
+                "bird": 535,
+                "cat": 482,
+                "deer": 523,
+                "dog": 473,
+                "frog": 502,
+                "horse": 469,
+                "ship": 518,
+                "truck": 483
+            },
+            "dominant_class": "automobile",
+            "entropy": 3.32,
+            "checksum": "baf290d1dfab262c977cdd43b8da5c360970cc56a27ee9917a7d1c0ba7cd45f6"
+        },
+        "client_002": {
+            "client_id": "client_002",
+            "sample_count": 5000,
+            "partition_path": "client_002/data.pt",
+            "class_distribution": {
+                "airplane": 504,
+                "automobile": 485,
+                "bird": 492,
+                "cat": 468,
+                "deer": 501,
+                "dog": 550,
+                "frog": 485,
+                "horse": 542,
+                "ship": 509,
+                "truck": 464
+            },
+            "dominant_class": "dog",
+            "entropy": 3.3199,
+            "checksum": "ec2ff7c5fc6f966607a6e2f4f79dbad5a0314411c451c202ed13f00637142ba8"
+        },
+        "client_003": {
+            "client_id": "client_003",
+            "sample_count": 5000,
+            "partition_path": "client_003/data.pt",
+            "class_distribution": {
+                "airplane": 488,
+                "automobile": 542,
+                "bird": 483,
+                "cat": 530,
+                "deer": 532,
+                "dog": 478,
+                "frog": 468,
+                "horse": 467,
+                "ship": 484,
+                "truck": 528
+            },
+            "dominant_class": "automobile",
+            "entropy": 3.3197,
+            "checksum": "a40e929f6518a3dd5147d27ae9efec676cf7599b2c417e551b466f9dbb399233"
+        },
+        "client_004": {
+            "client_id": "client_004",
+            "sample_count": 5000,
+            "partition_path": "client_004/data.pt",
+            "class_distribution": {
+                "airplane": 522,
+                "automobile": 496,
+                "bird": 455,
+                "cat": 508,
+                "deer": 481,
+                "dog": 538,
+                "frog": 480,
+                "horse": 529,
+                "ship": 476,
+                "truck": 515
+            },
+            "dominant_class": "dog",
+            "entropy": 3.3201,
+            "checksum": "7d3d8bcaa937fbbfbf79cdbb23eb4b3a9ced54de4810b41b5c5ff5b81b676ad7"
+        },
+        "client_005": {
+            "client_id": "client_005",
+            "sample_count": 5000,
+            "partition_path": "client_005/data.pt",
+            "class_distribution": {
+                "airplane": 517,
+                "automobile": 472,
+                "bird": 553,
+                "cat": 482,
+                "deer": 499,
+                "dog": 449,
+                "frog": 483,
+                "horse": 477,
+                "ship": 553,
+                "truck": 515
+            },
+            "dominant_class": "bird",
+            "entropy": 3.3189,
+            "checksum": "8f934df99a0b6ecc5eb2a3258b78a72e02efbc50c9bbdf3086200cf8d06e8788"
+        },
+        "client_006": {
+            "client_id": "client_006",
+            "sample_count": 5000,
+            "partition_path": "client_006/data.pt",
+            "class_distribution": {
+                "airplane": 494,
+                "automobile": 477,
+                "bird": 525,
+                "cat": 509,
+                "deer": 496,
+                "dog": 459,
+                "frog": 552,
+                "horse": 502,
+                "ship": 491,
+                "truck": 495
+            },
+            "dominant_class": "frog",
+            "entropy": 3.3203,
+            "checksum": "34e7d094543280f25053a013db6f9a5f4c484b008d241464c8d4e4c5c1fe6079"
+        },
+        "client_007": {
+            "client_id": "client_007",
+            "sample_count": 5000,
+            "partition_path": "client_007/data.pt",
+            "class_distribution": {
+                "airplane": 496,
+                "automobile": 498,
+                "bird": 482,
+                "cat": 525,
+                "deer": 494,
+                "dog": 499,
+                "frog": 490,
+                "horse": 520,
+                "ship": 503,
+                "truck": 493
+            },
+            "dominant_class": "cat",
+            "entropy": 3.3215,
+            "checksum": "e7c3ecb7e5ea861af6fee0cce52d460d2c81c200ed787385f9997c81ab54cba0"
+        },
+        "client_008": {
+            "client_id": "client_008",
+            "sample_count": 5000,
+            "partition_path": "client_008/data.pt",
+            "class_distribution": {
+                "airplane": 521,
+                "automobile": 494,
+                "bird": 484,
+                "cat": 472,
+                "deer": 503,
+                "dog": 556,
+                "frog": 468,
+                "horse": 507,
+                "ship": 497,
+                "truck": 498
+            },
+            "dominant_class": "dog",
+            "entropy": 3.3203,
+            "checksum": "d32d062cb5934bfb2a09132105c64230b34b172f03fe3faa92acbccce32d91ec"
+        },
+        "client_009": {
+            "client_id": "client_009",
+            "sample_count": 5000,
+            "partition_path": "client_009/data.pt",
+            "class_distribution": {
+                "airplane": 532,
+                "automobile": 514,
+                "bird": 477,
+                "cat": 499,
+                "deer": 480,
+                "dog": 481,
+                "frog": 512,
+                "horse": 511,
+                "ship": 478,
+                "truck": 516
+            },
+            "dominant_class": "airplane",
+            "entropy": 3.3209,
+            "checksum": "d1eae90ed2919296f1896f6694508f3676398c54cabd1aa13b036662d36dec59"
+        },
+        "client_010": {
+            "client_id": "client_010",
+            "sample_count": 5000,
+            "partition_path": "client_010/data.pt",
+            "class_distribution": {
+                "airplane": 453,
+                "automobile": 480,
+                "bird": 514,
+                "cat": 525,
+                "deer": 491,
+                "dog": 517,
+                "frog": 560,
+                "horse": 476,
+                "ship": 491,
+                "truck": 493
+            },
+            "dominant_class": "frog",
+            "entropy": 3.3196,
+            "checksum": "33128a206b6411df4c7da6acfc813a13cd59ca2d36228a0131a5250d3ab073f6"
+        }
+    }
+}

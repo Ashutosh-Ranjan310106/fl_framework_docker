@@ -1,0 +1,43 @@
+experiment:
+  id: "cifar10_baseline_001"
+  name: "CIFAR10 Flower Baseline"
+  description: "Initial baseline federated learning experiment using CIFAR-10 with FedAvg"
+
+dataset:
+  name: "cifar10"
+  num_classes: 10
+  partition_strategy: "iid"
+  partition_config: "datasets/partitions/cifar10/iid/clients_10_seed_42"
+
+federated_learning:
+  strategy: "fedavg"
+  num_rounds: 3
+  min_fit_clients: 2
+  min_available_clients: 2
+  fraction_fit: 1.0
+  fraction_evaluate: 1.0
+  server_address: "server:8080"
+
+clients:
+  - id: "client_001"
+    partition: "client_001"
+    enabled: true
+  - id: "client_002"
+    partition: "client_002"
+    enabled: true
+  - id: "client_003"
+    partition: "client_003"
+    enabled: true
+
+training:
+  local_epochs: 2
+  batch_size: 32
+  learning_rate: 0.001
+  optimizer: "adam"
+  device: "cpu"
+
+monitoring:
+  enabled: true
+  url: "http://monitor:8000"
+  resource_sampling_interval: 2
+  event_persistence: true

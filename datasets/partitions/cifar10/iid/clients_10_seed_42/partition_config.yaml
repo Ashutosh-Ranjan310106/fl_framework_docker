@@ -1,0 +1,6 @@
+dataset: CIFAR-10
+strategy: iid
+num_clients: 10
+random_seed: 42
+strategy_params: {}
+created_at: '2026-10-31 19:08:47'

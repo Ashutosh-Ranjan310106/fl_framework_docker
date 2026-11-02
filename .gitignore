@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv/
+
+# PyTest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs and databases
+logs/**/*.log
+monitoring/data/*.db
+*.sqlite
+*.db
+
+# Model checkpoints
+models/checkpoints/*.pt
+
+# Dataset binaries and archives (reproduced deterministically via dataset_manager)
+datasets/**/*.pt
+datasets/**/*.tar.gz
+datasets/**/*.zip
+!datasets/**/.gitkeep
+
+# Temporary partition generation builds
+datasets/partitions/**/_tmp_*
+**/_tmp_*
+
+# OS / Editor artifacts
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

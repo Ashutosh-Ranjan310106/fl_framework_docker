@@ -1,0 +1,34 @@
+# Git
+.git
+.gitignore
+
+# Python caches and virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+env/
+
+# Logs and local databases
+logs/
+*.log
+monitoring/data/*.db
+
+# Datasets (mounted dynamically via volumes at runtime)
+datasets/partitions/
+datasets/original/
+datasets/cifar-10-batches-py/
+datasets/*.tar.gz
+datasets/*.zip
+
+# Model checkpoints and output results (mounted via volumes)
+models/checkpoints/
+results/
+
+# Documentation and temporary files
+README.md
+.dockerignore

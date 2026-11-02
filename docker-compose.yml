@@ -1,0 +1,162 @@
+networks:
+  fl_network:
+    driver: bridge
+
+services:
+  monitor:
+    build:
+      context: .
+      dockerfile: monitoring/Dockerfile
+    image: fl_monitor:latest
+    container_name: fl_monitor
+    ports:
+      - "8000:8000"
+    environment:
+      - MONITORING_DB_PATH=/app/monitoring/data/monitoring.db
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./monitoring/data:/app/monitoring/data
+      - ./logs/monitoring:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 4s
+      timeout: 3s
+      retries: 5
+      start_period: 3s
+    networks:
+      - fl_network
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+
+  server:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    image: fl_server:latest
+    container_name: fl_server
+    depends_on:
+      monitor:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      - EXPERIMENT_CONFIG_PATH=experiments/default.yaml
+      - SERVER_ADDRESS=0.0.0.0:8080
+      - MONITORING_URL=http://monitor:8000
+      - NUM_ROUNDS=3
+      - MIN_FIT_CLIENTS=2
+      - MIN_AVAILABLE_CLIENTS=2
+      - CHECKPOINT_DIR=/app/models/checkpoints
+      - TEST_DATA_PATH=/app/datasets/original/cifar10/test/data.pt
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./models:/app/models
+      - ./logs/server:/app/logs
+      - ./results:/app/results
+      - ./datasets/original:/app/datasets/original:ro
+    networks:
+      - fl_network
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+
+  client_001:
+    build:
+      context: .
+      dockerfile: client/Dockerfile
+    image: fl_client:latest
+    container_name: fl_client_001
+    depends_on:
+      server:
+        condition: service_started
+      monitor:
+        condition: service_healthy
+    environment:
+      - CLIENT_ID=client_001
+      - CLIENT_ROLE=honest
+      - PARTITION_PATH=/app/data
+      - SERVER_ADDRESS=${SERVER_ADDRESS:-server:8080}
+      - MONITORING_URL=${MONITORING_URL:-http://monitor:8000}
+      - LOCAL_EPOCHS=2
+      - BATCH_SIZE=32
+      - LEARNING_RATE=0.001
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./datasets/partitions/cifar10/iid/clients_10_seed_42/client_001:/app/data:ro
+      - ./logs/clients/client_001:/app/logs
+    networks:
+      - fl_network
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+
+  client_002:
+    build:
+      context: .
+      dockerfile: client/Dockerfile
+    image: fl_client:latest
+    container_name: fl_client_002
+    depends_on:
+      server:
+        condition: service_started
+      monitor:
+        condition: service_healthy
+    environment:
+      - CLIENT_ID=client_002
+      - CLIENT_ROLE=honest
+      - PARTITION_PATH=/app/data
+      - SERVER_ADDRESS=${SERVER_ADDRESS:-server:8080}
+      - MONITORING_URL=${MONITORING_URL:-http://monitor:8000}
+      - LOCAL_EPOCHS=2
+      - BATCH_SIZE=32
+      - LEARNING_RATE=0.001
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./datasets/partitions/cifar10/iid/clients_10_seed_42/client_002:/app/data:ro
+      - ./logs/clients/client_002:/app/logs
+    networks:
+      - fl_network
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+
+  client_003:
+    build:
+      context: .
+      dockerfile: client/Dockerfile
+    image: fl_client:latest
+    container_name: fl_client_003
+    depends_on:
+      server:
+        condition: service_started
+      monitor:
+        condition: service_healthy
+    environment:
+      - CLIENT_ID=client_003
+      - CLIENT_ROLE=honest
+      - PARTITION_PATH=/app/data
+      - SERVER_ADDRESS=${SERVER_ADDRESS:-server:8080}
+      - MONITORING_URL=${MONITORING_URL:-http://monitor:8000}
+      - LOCAL_EPOCHS=2
+      - BATCH_SIZE=32
+      - LEARNING_RATE=0.001
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./datasets/partitions/cifar10/iid/clients_10_seed_42/client_003:/app/data:ro
+      - ./logs/clients/client_003:/app/logs
+    networks:
+      - fl_network
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
