@@ -26,7 +26,7 @@ class ClientRecord(Base):
     __tablename__ = "clients"
 
     client_id = Column(String(100), primary_key=True)
-    experiment_id = Column(String(100), nullable=False, index=True)
+    experiment_id = Column(String(100), primary_key=True, index=True)
     role = Column(String(50), default="honest")
     status = Column(String(50), default="Registered")
     current_round = Column(Integer, default=0)

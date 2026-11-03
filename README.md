@@ -1,8 +1,27 @@
 # Docker-Based Flower Federated Learning Infrastructure with FastAPI Monitoring
 
-A production-grade, observable, containerized Federated Learning (FL) framework using **Flower**, **PyTorch**, and **CIFAR-10**, accompanied by an asynchronous **FastAPI** monitoring service with real-time **WebSocket** telemetry and a **Chart.js** web dashboard.
+[![GitHub License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/)
+[![Flower FL](https://img.shields.io/badge/Flower-1.15.2-orange.svg)](https://flower.ai/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-red.svg)](https://pytorch.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-green.svg)](https://fastapi.tiangolo.com/)
+[![Docker Compose](https://img.shields.io/badge/Docker-Compose-2496ED.svg)](https://www.docker.com/)
 
-This framework is the foundational infrastructure for a future Federated Learning Security Testing and Benchmarking Framework.
+An enterprise-ready, containerized, and observable **Federated Learning (FL)** framework built with **Flower**, **PyTorch**, **FastAPI**, **WebSockets**, and **Docker Compose**. The framework trains a deep convolutional neural network on distributed partitions of the **CIFAR-10** benchmark while streaming real-time client hardware metrics, training curves, and round lifecycle stages to an interactive dark-mode web console.
+
+This framework is engineered as a foundational infrastructure for distributed machine learning research, edge simulation, and comprehensive **Federated Learning Security Testing & Benchmarking** (adversarial model poisoning, backdoor injection, Byzantine fault tolerance, and defense mechanism evaluation).
+
+---
+
+## 🌟 Framework Core Pillars & Key Capabilities
+
+- **🧠 High-Efficiency PyTorch Engine**: Employs a custom, lightweight `CIFAR10CNN` model (2,193,674 trainable parameters) with Batch Normalization, Dropout regularization, and Cross-Entropy loss. Features bounded CPU thread allocation (`torch.set_num_threads(2)`) to eliminate multi-container host CPU thrashing.
+- **🌐 Decoupled Microservice Architecture**: Clean three-tier separation between the central **Flower Server** (orchestration, validation, FedAvg aggregation, global test evaluation), independent **Federated Clients** (isolated data mounts, local optimization), and an asynchronous **FastAPI Monitoring Service** (SQLite persistence, REST API, and WebSocket streaming).
+- **📊 Real-Time Observability & Live Web Console**: Sub-second full-duplex WebSocket telemetry powering an interactive dark-mode dashboard (Chart.js) with real-time global accuracy/loss progression, per-client loss comparisons, 5-stage round lifecycle trackers, and live client hardware profiling (CPU % and RAM MB via `psutil`).
+- **⚡ Non-Blocking Telemetry Pipelines**: Dedicated background worker daemon threads with bounded queue buffers in both server and clients emit telemetry asynchronously via HTTP POST (`202 Accepted`), guaranteeing zero blocking or delay in PyTorch training loops or Flower gRPC communication.
+- **🗂️ Advanced Data Heterogeneity & Partition Suite**: Integrated partition manager supporting deterministic **IID**, **Non-IID Dirichlet ($\alpha$)**, **Label Skew**, and **Quantity Skew** data distributions, backed by SHA-256 verification registries, statistics manifests, and an interactive **Streamlit Dataset Explorer**.
+- **🐳 Dual-Mode Orchestration**: Run the full distributed ecosystem with a single command via **Docker Compose** (with automated health check barriers and bridge networking), or natively in the **Terminal** via an automated deadlock-free Python multi-process runner or individual shell sessions.
+- **🛡️ Security & Benchmarking Foundation**: Built-in client role management (`honest`, with architectural hooks for malicious or Byzantine clients), server-side weight anomaly sanitization (detecting NaN/Inf parameters), and automated round-by-round PyTorch model checkpointing.
 
 ---
 
@@ -390,6 +409,12 @@ docker compose down
 docker compose down -v
 ```
 
+### 7.6 Docker Hub Image Registry
+Container images for the framework components:
+- **FastAPI Monitoring Service**: [`ashutosh310106/fl_monitor:latest`](https://hub.docker.com/r/ashutosh310106/fl_monitor)
+- **Flower Central FL Server**: `ashutosh310106/fl_server:latest`
+- **Federated Client Node**: `ashutosh310106/fl_client:latest`
+
 ---
 
 ## 8. Terminal & CLI Orchestration Reference
@@ -591,6 +616,10 @@ The monitoring service exposes the following OpenAPI endpoints:
 | `GET` | `/api/metrics/clients/{client_id}` | Local loss and accuracy history for a specific client |
 | `GET` | `/api/system/resources` | CPU and RAM utilization snapshots |
 | `GET` | `/api/events` | Chronological event audit feed with filtering |
+| `GET` | `/api/reports` | List historical run reports saved in results volume |
+| `GET` | `/api/reports/latest` | Retrieve the most recent experiment run report |
+| `GET` | `/api/reports/{run_id}` | Detailed report payload (Markdown/JSON/CSV summary) |
+| `GET` | `/api/logs/{service}` | Tail service container logs from the persistent volume |
 | `POST` | `/api/internal/events` | Internal event ingestion route (returns HTTP 202) |
 | `WS` | `/ws/live` | WebSocket connection for real-time dashboard events |
 
@@ -751,6 +780,12 @@ Each checkpoint contains:
     "timestamp": 1793456789.0
 }
 ```
+
+### Automated Run Reports:
+At the conclusion of an experiment, the server automatically produces persistent multi-format audit reports saved in `results/run_reports/`:
+- **Markdown Summary (`*_report.md`)**: Human-readable run summary detailing final accuracy, loss progression, client contributions, and round timestamps.
+- **JSON Telemetry Report (`*_report.json`)**: Complete structured audit payload accessible programmatically via `GET /api/reports/latest`.
+- **Per-Round Metrics CSV (`*_metrics.csv`)**: Tabular time-series for easy import into pandas, Excel, or plotting frameworks.
 
 ---
 

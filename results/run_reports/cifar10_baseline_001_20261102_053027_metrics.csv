@@ -1,0 +1,2 @@
+round,loss,accuracy,samples,duration_seconds,participating_clients,timestamp
+1,2.0901,0.2412,10000,14.40,2,2026-11-02T05:32:37.562331+00:00

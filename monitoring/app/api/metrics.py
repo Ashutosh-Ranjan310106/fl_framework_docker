@@ -15,13 +15,21 @@ router = APIRouter(prefix="/api", tags=["Metrics"])
 @router.get("/metrics/global", response_model=List[Dict[str, Any]])
 def get_global_metrics(experiment_id: str | None = None, db: Session = Depends(get_db)):
     """Retrieve global evaluation metrics over rounds."""
+    if not experiment_id:
+        curr = repository.get_current_experiment(db)
+        if curr:
+            experiment_id = curr["id"]
     return repository.get_global_metrics(db, experiment_id=experiment_id)
 
 
 @router.get("/metrics/clients/{client_id}", response_model=List[Dict[str, Any]])
-def get_client_metrics(client_id: str, db: Session = Depends(get_db)):
+def get_client_metrics(client_id: str, experiment_id: str | None = None, db: Session = Depends(get_db)):
     """Retrieve training loss and accuracy history for a specific client."""
-    return repository.get_client_metrics(db, client_id=client_id)
+    if not experiment_id:
+        curr = repository.get_current_experiment(db)
+        if curr:
+            experiment_id = curr["id"]
+    return repository.get_client_metrics(db, client_id=client_id, experiment_id=experiment_id)
 
 
 @router.get("/system/resources", response_model=List[Dict[str, Any]])

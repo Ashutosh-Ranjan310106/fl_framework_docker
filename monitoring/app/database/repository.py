@@ -51,6 +51,22 @@ def get_all_experiments(db: Session) -> List[Dict[str, Any]]:
     ]
 
 
+def get_experiment(db: Session, experiment_id: str) -> Optional[Dict[str, Any]]:
+    record = db.query(ExperimentRecord).filter(ExperimentRecord.id == experiment_id).first()
+    if not record:
+        return None
+    return {
+        "id": record.id,
+        "name": record.name,
+        "status": record.status,
+        "strategy": record.strategy,
+        "num_rounds": record.num_rounds,
+        "start_time": record.start_time,
+        "end_time": record.end_time,
+        "config": json.loads(record.config_json or "{}"),
+    }
+
+
 def upsert_experiment(
     db: Session,
     exp_id: str,
@@ -98,7 +114,11 @@ def upsert_client(
     ram_mb: Optional[float] = None,
     role: str = "honest",
 ) -> ClientRecord:
-    record = db.query(ClientRecord).filter(ClientRecord.client_id == client_id).first()
+    record = (
+        db.query(ClientRecord)
+        .filter(ClientRecord.client_id == client_id, ClientRecord.experiment_id == experiment_id)
+        .first()
+    )
     if not record:
         record = ClientRecord(
             client_id=client_id,
@@ -114,8 +134,6 @@ def upsert_client(
         )
         db.add(record)
     else:
-        if experiment_id:
-            record.experiment_id = experiment_id
         if status:
             record.status = status
         if current_round is not None:
@@ -158,8 +176,11 @@ def get_all_clients(db: Session, experiment_id: Optional[str] = None) -> List[Di
     ]
 
 
-def get_client(db: Session, client_id: str) -> Optional[Dict[str, Any]]:
-    r = db.query(ClientRecord).filter(ClientRecord.client_id == client_id).first()
+def get_client(db: Session, client_id: str, experiment_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    query = db.query(ClientRecord).filter(ClientRecord.client_id == client_id)
+    if experiment_id:
+        query = query.filter(ClientRecord.experiment_id == experiment_id)
+    r = query.order_by(desc(ClientRecord.last_seen)).first()
     if not r:
         return None
     return {
@@ -334,13 +355,11 @@ def add_client_metric(
     return metric
 
 
-def get_client_metrics(db: Session, client_id: str) -> List[Dict[str, Any]]:
-    records = (
-        db.query(ClientMetricRecord)
-        .filter(ClientMetricRecord.client_id == client_id)
-        .order_by(ClientMetricRecord.round_number)
-        .all()
-    )
+def get_client_metrics(db: Session, client_id: str, experiment_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    query = db.query(ClientMetricRecord).filter(ClientMetricRecord.client_id == client_id)
+    if experiment_id:
+        query = query.filter(ClientMetricRecord.experiment_id == experiment_id)
+    records = query.order_by(ClientMetricRecord.round_number).all()
     return [
         {
             "round": r.round_number,

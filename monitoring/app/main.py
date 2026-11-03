@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 
 from monitoring.app.api.clients import router as clients_router
 from monitoring.app.api.metrics import router as metrics_router
+from monitoring.app.api.reports import router as reports_router
 from monitoring.app.api.rounds import router as rounds_router
 from monitoring.app.api.routes import router as core_router
 from monitoring.app.database.database import init_db
@@ -65,6 +66,7 @@ app.include_router(core_router)
 app.include_router(clients_router)
 app.include_router(rounds_router)
 app.include_router(metrics_router)
+app.include_router(reports_router)
 
 
 # WebSocket endpoint

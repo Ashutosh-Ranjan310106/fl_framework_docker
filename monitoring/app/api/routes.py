@@ -44,6 +44,15 @@ def list_experiments(db: Session = Depends(get_db)):
     return repository.get_all_experiments(db)
 
 
+@router.get("/experiments/{experiment_id}", response_model=Optional[Dict[str, Any]])
+def get_experiment_by_id(experiment_id: str, db: Session = Depends(get_db)):
+    """Retrieve details of a specific historical experiment run."""
+    exp = repository.get_experiment(db, experiment_id=experiment_id)
+    if not exp:
+        raise HTTPException(status_code=404, detail=f"Experiment '{experiment_id}' not found")
+    return exp
+
+
 @router.get("/events", response_model=List[Dict[str, Any]])
 def list_events(
     experiment_id: Optional[str] = None,
@@ -55,6 +64,11 @@ def list_events(
     db: Session = Depends(get_db),
 ):
     """Retrieve chronological event feed with optional filtering."""
+    if not experiment_id and not client_id and round_number is None and not event_type and not severity:
+        curr = repository.get_current_experiment(db)
+        if curr:
+            experiment_id = curr["id"]
+
     return repository.get_events(
         db,
         experiment_id=experiment_id,

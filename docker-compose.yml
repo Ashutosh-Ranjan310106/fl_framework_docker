@@ -3,60 +3,40 @@ networks:
     driver: bridge
 
 services:
-  monitor:
-    build:
-      context: .
-      dockerfile: monitoring/Dockerfile
-    image: fl_monitor:latest
-    container_name: fl_monitor
-    ports:
-      - "8000:8000"
-    environment:
-      - MONITORING_DB_PATH=/app/monitoring/data/monitoring.db
-      - PYTHONUNBUFFERED=1
-    volumes:
-      - ./monitoring/data:/app/monitoring/data
-      - ./logs/monitoring:/app/logs
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
-      interval: 4s
-      timeout: 3s
-      retries: 5
-      start_period: 3s
-    networks:
-      - fl_network
-    deploy:
-      resources:
-        limits:
-          cpus: "1.0"
-          memory: 1G
-
   server:
     build:
       context: .
       dockerfile: server/Dockerfile
     image: fl_server:latest
     container_name: fl_server
-    depends_on:
-      monitor:
-        condition: service_healthy
     ports:
       - "8080:8080"
+      - "8000:8000"
     environment:
       - EXPERIMENT_CONFIG_PATH=experiments/default.yaml
       - SERVER_ADDRESS=0.0.0.0:8080
-      - MONITORING_URL=http://monitor:8000
-      - NUM_ROUNDS=3
-      - MIN_FIT_CLIENTS=2
-      - MIN_AVAILABLE_CLIENTS=2
+      - MONITORING_URL=http://127.0.0.1:8000
+      - MONITORING_DB_PATH=/app/results/monitoring.db
+      - ENABLE_EMBEDDED_MONITOR=true
+      - RESULTS_DIR=/app/results
+      - LOG_DIR=/app/logs
+      - NUM_ROUNDS=${NUM_ROUNDS:-3}
+      - MIN_FIT_CLIENTS=${MIN_FIT_CLIENTS:-2}
+      - MIN_AVAILABLE_CLIENTS=${MIN_AVAILABLE_CLIENTS:-2}
       - CHECKPOINT_DIR=/app/models/checkpoints
       - TEST_DATA_PATH=/app/datasets/original/cifar10/test/data.pt
       - PYTHONUNBUFFERED=1
     volumes:
       - ./models:/app/models
-      - ./logs/server:/app/logs
+      - ./logs:/app/logs
       - ./results:/app/results
       - ./datasets/original:/app/datasets/original:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 4s
+      timeout: 3s
+      retries: 5
+      start_period: 3s
     networks:
       - fl_network
     deploy:
@@ -74,17 +54,16 @@ services:
     depends_on:
       server:
         condition: service_started
-      monitor:
-        condition: service_healthy
     environment:
       - CLIENT_ID=client_001
       - CLIENT_ROLE=honest
       - PARTITION_PATH=/app/data
       - SERVER_ADDRESS=${SERVER_ADDRESS:-server:8080}
-      - MONITORING_URL=${MONITORING_URL:-http://monitor:8000}
+      - MONITORING_URL=${MONITORING_URL:-http://server:8000}
       - LOCAL_EPOCHS=2
       - BATCH_SIZE=32
       - LEARNING_RATE=0.001
+      - LOG_DIR=/app/logs
       - PYTHONUNBUFFERED=1
     volumes:
       - ./datasets/partitions/cifar10/iid/clients_10_seed_42/client_001:/app/data:ro
@@ -106,17 +85,16 @@ services:
     depends_on:
       server:
         condition: service_started
-      monitor:
-        condition: service_healthy
     environment:
       - CLIENT_ID=client_002
       - CLIENT_ROLE=honest
       - PARTITION_PATH=/app/data
       - SERVER_ADDRESS=${SERVER_ADDRESS:-server:8080}
-      - MONITORING_URL=${MONITORING_URL:-http://monitor:8000}
+      - MONITORING_URL=${MONITORING_URL:-http://server:8000}
       - LOCAL_EPOCHS=2
       - BATCH_SIZE=32
       - LEARNING_RATE=0.001
+      - LOG_DIR=/app/logs
       - PYTHONUNBUFFERED=1
     volumes:
       - ./datasets/partitions/cifar10/iid/clients_10_seed_42/client_002:/app/data:ro
@@ -138,21 +116,237 @@ services:
     depends_on:
       server:
         condition: service_started
-      monitor:
-        condition: service_healthy
     environment:
       - CLIENT_ID=client_003
       - CLIENT_ROLE=honest
       - PARTITION_PATH=/app/data
       - SERVER_ADDRESS=${SERVER_ADDRESS:-server:8080}
-      - MONITORING_URL=${MONITORING_URL:-http://monitor:8000}
+      - MONITORING_URL=${MONITORING_URL:-http://server:8000}
       - LOCAL_EPOCHS=2
       - BATCH_SIZE=32
       - LEARNING_RATE=0.001
+      - LOG_DIR=/app/logs
       - PYTHONUNBUFFERED=1
     volumes:
       - ./datasets/partitions/cifar10/iid/clients_10_seed_42/client_003:/app/data:ro
       - ./logs/clients/client_003:/app/logs
+    networks:
+      - fl_network
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+
+  client_004:
+    build:
+      context: .
+      dockerfile: client/Dockerfile
+    image: fl_client:latest
+    container_name: fl_client_004
+    depends_on:
+      server:
+        condition: service_started
+    environment:
+      - CLIENT_ID=client_004
+      - CLIENT_ROLE=honest
+      - PARTITION_PATH=/app/data
+      - SERVER_ADDRESS=${SERVER_ADDRESS:-server:8080}
+      - MONITORING_URL=${MONITORING_URL:-http://server:8000}
+      - LOCAL_EPOCHS=2
+      - BATCH_SIZE=32
+      - LEARNING_RATE=0.001
+      - LOG_DIR=/app/logs
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./datasets/partitions/cifar10/iid/clients_10_seed_42/client_004:/app/data:ro
+      - ./logs/clients/client_004:/app/logs
+    networks:
+      - fl_network
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+
+  client_005:
+    build:
+      context: .
+      dockerfile: client/Dockerfile
+    image: fl_client:latest
+    container_name: fl_client_005
+    depends_on:
+      server:
+        condition: service_started
+    environment:
+      - CLIENT_ID=client_005
+      - CLIENT_ROLE=honest
+      - PARTITION_PATH=/app/data
+      - SERVER_ADDRESS=${SERVER_ADDRESS:-server:8080}
+      - MONITORING_URL=${MONITORING_URL:-http://server:8000}
+      - LOCAL_EPOCHS=2
+      - BATCH_SIZE=32
+      - LEARNING_RATE=0.001
+      - LOG_DIR=/app/logs
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./datasets/partitions/cifar10/iid/clients_10_seed_42/client_005:/app/data:ro
+      - ./logs/clients/client_005:/app/logs
+    networks:
+      - fl_network
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+
+  client_006:
+    build:
+      context: .
+      dockerfile: client/Dockerfile
+    image: fl_client:latest
+    container_name: fl_client_006
+    depends_on:
+      server:
+        condition: service_started
+    environment:
+      - CLIENT_ID=client_006
+      - CLIENT_ROLE=honest
+      - PARTITION_PATH=/app/data
+      - SERVER_ADDRESS=${SERVER_ADDRESS:-server:8080}
+      - MONITORING_URL=${MONITORING_URL:-http://server:8000}
+      - LOCAL_EPOCHS=2
+      - BATCH_SIZE=32
+      - LEARNING_RATE=0.001
+      - LOG_DIR=/app/logs
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./datasets/partitions/cifar10/iid/clients_10_seed_42/client_006:/app/data:ro
+      - ./logs/clients/client_006:/app/logs
+    networks:
+      - fl_network
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+
+  client_007:
+    build:
+      context: .
+      dockerfile: client/Dockerfile
+    image: fl_client:latest
+    container_name: fl_client_007
+    depends_on:
+      server:
+        condition: service_started
+    environment:
+      - CLIENT_ID=client_007
+      - CLIENT_ROLE=honest
+      - PARTITION_PATH=/app/data
+      - SERVER_ADDRESS=${SERVER_ADDRESS:-server:8080}
+      - MONITORING_URL=${MONITORING_URL:-http://server:8000}
+      - LOCAL_EPOCHS=2
+      - BATCH_SIZE=32
+      - LEARNING_RATE=0.001
+      - LOG_DIR=/app/logs
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./datasets/partitions/cifar10/iid/clients_10_seed_42/client_007:/app/data:ro
+      - ./logs/clients/client_007:/app/logs
+    networks:
+      - fl_network
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+
+  client_008:
+    build:
+      context: .
+      dockerfile: client/Dockerfile
+    image: fl_client:latest
+    container_name: fl_client_008
+    depends_on:
+      server:
+        condition: service_started
+    environment:
+      - CLIENT_ID=client_008
+      - CLIENT_ROLE=honest
+      - PARTITION_PATH=/app/data
+      - SERVER_ADDRESS=${SERVER_ADDRESS:-server:8080}
+      - MONITORING_URL=${MONITORING_URL:-http://server:8000}
+      - LOCAL_EPOCHS=2
+      - BATCH_SIZE=32
+      - LEARNING_RATE=0.001
+      - LOG_DIR=/app/logs
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./datasets/partitions/cifar10/iid/clients_10_seed_42/client_008:/app/data:ro
+      - ./logs/clients/client_008:/app/logs
+    networks:
+      - fl_network
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+
+  client_009:
+    build:
+      context: .
+      dockerfile: client/Dockerfile
+    image: fl_client:latest
+    container_name: fl_client_009
+    depends_on:
+      server:
+        condition: service_started
+    environment:
+      - CLIENT_ID=client_009
+      - CLIENT_ROLE=honest
+      - PARTITION_PATH=/app/data
+      - SERVER_ADDRESS=${SERVER_ADDRESS:-server:8080}
+      - MONITORING_URL=${MONITORING_URL:-http://server:8000}
+      - LOCAL_EPOCHS=2
+      - BATCH_SIZE=32
+      - LEARNING_RATE=0.001
+      - LOG_DIR=/app/logs
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./datasets/partitions/cifar10/iid/clients_10_seed_42/client_009:/app/data:ro
+      - ./logs/clients/client_009:/app/logs
+    networks:
+      - fl_network
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+
+  client_010:
+    build:
+      context: .
+      dockerfile: client/Dockerfile
+    image: fl_client:latest
+    container_name: fl_client_010
+    depends_on:
+      server:
+        condition: service_started
+    environment:
+      - CLIENT_ID=client_010
+      - CLIENT_ROLE=honest
+      - PARTITION_PATH=/app/data
+      - SERVER_ADDRESS=${SERVER_ADDRESS:-server:8080}
+      - MONITORING_URL=${MONITORING_URL:-http://server:8000}
+      - LOCAL_EPOCHS=2
+      - BATCH_SIZE=32
+      - LEARNING_RATE=0.001
+      - LOG_DIR=/app/logs
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./datasets/partitions/cifar10/iid/clients_10_seed_42/client_010:/app/data:ro
+      - ./logs/clients/client_010:/app/logs
     networks:
       - fl_network
     deploy:

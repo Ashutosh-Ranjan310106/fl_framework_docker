@@ -3,11 +3,16 @@
 let ws = null;
 let reconnectTimer = null;
 let pingInterval = null;
+let backgroundSyncTimer = null;
+let logPollTimer = null;
 let globalMetricsChart = null;
 let clientLossChart = null;
 
 let allEvents = [];
 let currentExperiment = null;
+let currentExperimentId = null;
+let activeTab = "telemetry";
+let currentMarkdownReport = "";
 
 // Color palette
 const COLORS = {
@@ -26,102 +31,138 @@ document.addEventListener("DOMContentLoaded", () => {
     setupEventListeners();
     fetchInitialState();
     connectWebSocket();
+
+    // Periodic background sync every 3 seconds to guarantee updates never stall
+    backgroundSyncTimer = setInterval(backgroundSync, 3000);
+
+    // Periodic logs poll every 2 seconds
+    logPollTimer = setInterval(() => {
+        if (activeTab === "logs") {
+            const autoToggle = document.getElementById("auto-refresh-logs-toggle");
+            if (autoToggle && autoToggle.checked) {
+                fetchServerLogs();
+            }
+        }
+    }, 2000);
 });
 
 // 1. CHART INITIALIZATION
 function initCharts() {
-    // Global Metrics Chart
-    const ctxGlobal = document.getElementById("globalMetricsChart").getContext("2d");
-    globalMetricsChart = new Chart(ctxGlobal, {
-        type: "line",
-        data: {
-            labels: [],
-            datasets: [
-                {
-                    label: "Global Accuracy (%)",
-                    data: [],
-                    borderColor: COLORS.green,
-                    backgroundColor: "rgba(52, 211, 153, 0.1)",
-                    borderWidth: 2,
-                    yAxisID: "y-accuracy",
-                    tension: 0.2,
-                    fill: true,
+    const ctxGlobal = document.getElementById("globalMetricsChart");
+    if (ctxGlobal) {
+        globalMetricsChart = new Chart(ctxGlobal.getContext("2d"), {
+            type: "line",
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: "Global Accuracy (%)",
+                        data: [],
+                        borderColor: COLORS.green,
+                        backgroundColor: "rgba(52, 211, 153, 0.1)",
+                        borderWidth: 2,
+                        yAxisID: "y-accuracy",
+                        tension: 0.2,
+                        fill: true,
+                    },
+                    {
+                        label: "Global Loss",
+                        data: [],
+                        borderColor: COLORS.orange,
+                        backgroundColor: "transparent",
+                        borderWidth: 2,
+                        borderDash: [4, 4],
+                        yAxisID: "y-loss",
+                        tension: 0.2,
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        grid: { color: "#27354a" },
+                        ticks: { color: "#94a3b8" },
+                        title: { display: true, text: "FL Round", color: "#64748b" },
+                    },
+                    "y-accuracy": {
+                        type: "linear",
+                        position: "left",
+                        min: 0,
+                        max: 100,
+                        grid: { color: "#27354a" },
+                        ticks: { color: COLORS.green, callback: (v) => `${v}%` },
+                        title: { display: true, text: "Accuracy (%)", color: COLORS.green },
+                    },
+                    "y-loss": {
+                        type: "linear",
+                        position: "right",
+                        grid: { drawOnChartArea: false },
+                        ticks: { color: COLORS.orange },
+                        title: { display: true, text: "Loss", color: COLORS.orange },
+                    },
                 },
-                {
-                    label: "Global Loss",
-                    data: [],
-                    borderColor: COLORS.orange,
-                    backgroundColor: "transparent",
-                    borderWidth: 2,
-                    borderDash: [4, 4],
-                    yAxisID: "y-loss",
-                    tension: 0.2,
-                },
-            ],
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                x: {
-                    grid: { color: "#27354a" },
-                    ticks: { color: "#94a3b8" },
-                    title: { display: true, text: "FL Round", color: "#64748b" },
-                },
-                "y-accuracy": {
-                    type: "linear",
-                    position: "left",
-                    min: 0,
-                    max: 100,
-                    grid: { color: "#27354a" },
-                    ticks: { color: COLORS.green, callback: (v) => `${v}%` },
-                    title: { display: true, text: "Accuracy (%)", color: COLORS.green },
-                },
-                "y-loss": {
-                    type: "linear",
-                    position: "right",
-                    grid: { drawOnChartArea: false },
-                    ticks: { color: COLORS.orange },
-                    title: { display: true, text: "Loss", color: COLORS.orange },
+                plugins: {
+                    legend: { labels: { color: "#f1f5f9" } },
                 },
             },
-            plugins: {
-                legend: { labels: { color: "#f1f5f9" } },
-            },
-        },
-    });
+        });
+    }
 
-    // Client Loss Chart
-    const ctxClient = document.getElementById("clientLossChart").getContext("2d");
-    clientLossChart = new Chart(ctxClient, {
-        type: "line",
-        data: {
-            labels: [],
-            datasets: [],
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                x: {
-                    grid: { color: "#27354a" },
-                    ticks: { color: "#94a3b8" },
-                    title: { display: true, text: "FL Round", color: "#64748b" },
+    const ctxClient = document.getElementById("clientLossChart");
+    if (ctxClient) {
+        clientLossChart = new Chart(ctxClient.getContext("2d"), {
+            type: "line",
+            data: {
+                labels: [],
+                datasets: [],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        grid: { color: "#27354a" },
+                        ticks: { color: "#94a3b8" },
+                        title: { display: true, text: "FL Round", color: "#64748b" },
+                    },
+                    y: {
+                        grid: { color: "#27354a" },
+                        ticks: { color: "#94a3b8" },
+                        title: { display: true, text: "Training Loss", color: "#64748b" },
+                    },
                 },
-                y: {
-                    grid: { color: "#27354a" },
-                    ticks: { color: "#94a3b8" },
-                    title: { display: true, text: "Training Loss", color: "#64748b" },
+                plugins: {
+                    legend: { labels: { color: "#f1f5f9" } },
                 },
             },
-            plugins: {
-                legend: { labels: { color: "#f1f5f9" } },
-            },
-        },
-    });
+        });
+    }
 }
 
-// 2. WEBSOCKET CONNECTION
+// 2. TAB SWITCHING
+function switchTab(tabName) {
+    activeTab = tabName;
+
+    // Buttons
+    document.querySelectorAll(".tab-btn").forEach((btn) => btn.classList.remove("active"));
+    const activeBtn = document.getElementById(`tab-btn-${tabName}`);
+    if (activeBtn) activeBtn.classList.add("active");
+
+    // Content containers
+    document.querySelectorAll(".tab-content").forEach((panel) => panel.classList.add("hidden"));
+    const activePanel = document.getElementById(`tab-content-${tabName}`);
+    if (activePanel) activePanel.classList.remove("hidden");
+
+    if (tabName === "logs") {
+        fetchServerLogs();
+    } else if (tabName === "reports") {
+        fetchRunReports();
+    }
+}
+
+// 3. WEBSOCKET CONNECTION
 function connectWebSocket() {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const wsUrl = `${protocol}//${window.location.host}/ws/live`;
@@ -136,7 +177,6 @@ function connectWebSocket() {
             clearInterval(reconnectTimer);
             reconnectTimer = null;
 
-            // Heartbeat
             pingInterval = setInterval(() => {
                 if (ws && ws.readyState === WebSocket.OPEN) {
                     ws.send("ping");
@@ -175,30 +215,42 @@ function connectWebSocket() {
 function updateWsIndicator(status) {
     const dot = document.getElementById("ws-status-dot");
     const text = document.getElementById("ws-status-text");
+    if (!dot || !text) return;
 
     if (status === "connected") {
         dot.className = "dot connected";
         text.innerText = "Live Telemetry Connected";
     } else {
         dot.className = "dot disconnected";
-        text.innerText = status === "connecting" ? "Connecting..." : "Disconnected (Reconnecting...)";
+        text.innerText = status === "connecting" ? "Connecting..." : "Live Telemetry Polling";
     }
 }
 
-// 3. WEBSOCKET MESSAGE DISPATCHER
+// 4. WEBSOCKET MESSAGE DISPATCHER
 function handleWebSocketMessage(msg) {
     if (msg.type === "event") {
         const ev = msg.event;
-        allEvents.unshift(ev);
-        renderEvent(ev);
-        handleLifecycleEvent(ev);
+
+        if (ev.event_type === "experiment_started" || ev.event_type === "EXPERIMENT_STARTED") {
+            const newExpId = ev.experiment_id;
+            fetchExperimentsList(newExpId).then(() => {
+                loadExperiment(newExpId);
+            });
+            return;
+        }
+
+        if (!currentExperimentId || ev.experiment_id === currentExperimentId) {
+            allEvents.unshift(ev);
+            renderEvent(ev);
+            handleLifecycleEvent(ev);
+        }
     } else if (msg.type === "system_resources") {
         updateSystemResourceBars(msg.data);
     }
 }
 
 function handleLifecycleEvent(ev) {
-    const type = ev.event_type;
+    const type = (ev.event_type || "").toLowerCase();
     const data = ev.data || {};
 
     if (type === "experiment_started") {
@@ -208,19 +260,29 @@ function handleLifecycleEvent(ev) {
         }
     } else if (type === "experiment_completed") {
         setExperimentStatus("COMPLETED");
+        fetchExperimentsList();
+        fetchRunReports();
     } else if (type === "experiment_failed") {
         setExperimentStatus("FAILED");
+        fetchExperimentsList();
     } else if (type === "round_started") {
         updateRoundProgress(ev.round, data.total_rounds || 3);
-        fetchRounds();
-    } else if (type === "model_distribution_started" || type === "client_updates_started" || type === "aggregation_started" || type === "aggregation_finished" || type === "evaluation_finished" || type === "round_completed") {
-        fetchRounds();
-        fetchClients();
+        fetchRounds(currentExperimentId);
+    } else if (
+        type === "model_distribution_started" ||
+        type === "client_updates_started" ||
+        type === "aggregation_started" ||
+        type === "aggregation_finished" ||
+        type === "evaluation_finished" ||
+        type === "round_completed"
+    ) {
+        fetchRounds(currentExperimentId);
+        fetchClients(currentExperimentId);
         if (type === "evaluation_finished") {
             appendGlobalMetric(ev.round, data.accuracy, data.loss);
         }
     } else if (type.startsWith("client_")) {
-        fetchClients();
+        fetchClients(currentExperimentId);
         if (type === "client_training_completed" && ev.client_id) {
             appendClientMetric(ev.client_id, ev.round, data.loss);
         }
@@ -242,15 +304,98 @@ function updateSystemResourceBars(data) {
     if (ramText) ramText.innerText = `${ramVal}% (${Math.round(data.host_ram_used_mb || 0)} MB)`;
 }
 
-// 4. REST DATA FETCHING
-async function fetchInitialState() {
+// 5. PERIODIC BACKGROUND SYNC
+async function backgroundSync() {
+    if (!currentExperimentId) return;
     try {
+        await Promise.all([
+            fetchRounds(currentExperimentId),
+            fetchClients(currentExperimentId),
+            refreshGlobalMetrics(currentExperimentId),
+        ]);
+    } catch (e) {
+        console.debug("Background sync error:", e);
+    }
+}
+
+// 6. REST DATA FETCHING & RUN ISOLATION
+async function fetchExperimentsList(selectExpId = null) {
+    try {
+        const res = await fetch("/api/experiments");
+        if (!res.ok) return;
+        const experiments = await res.json();
+        const select = document.getElementById("experiment-select");
+        if (!select) return;
+
+        if (experiments.length === 0) {
+            select.innerHTML = '<option value="">No experiments recorded</option>';
+            return;
+        }
+
+        select.innerHTML = experiments
+            .map((exp) => {
+                const statusTag = (exp.status || "IDLE").toUpperCase();
+                return `<option value="${exp.id}">${exp.id} [${statusTag}]</option>`;
+            })
+            .join("");
+
+        if (selectExpId) {
+            select.value = selectExpId;
+        } else if (currentExperimentId) {
+            select.value = currentExperimentId;
+        }
+    } catch (e) {
+        console.debug("Failed to fetch experiments list:", e);
+    }
+}
+
+function resetDashboardState() {
+    if (globalMetricsChart) {
+        globalMetricsChart.data.labels = [];
+        globalMetricsChart.data.datasets[0].data = [];
+        globalMetricsChart.data.datasets[1].data = [];
+        globalMetricsChart.update();
+    }
+
+    if (clientLossChart) {
+        clientLossChart.data.labels = [];
+        clientLossChart.data.datasets = [];
+        clientLossChart.update();
+    }
+
+    document.getElementById("stat-exp-status").innerText = "IDLE";
+    document.getElementById("stat-current-round").innerText = "0 / 3";
+    document.getElementById("round-progress-bar").style.width = "0%";
+    document.getElementById("stat-clients-count").innerText = "0 Configured";
+    document.getElementById("stat-active-clients").innerText = "0";
+    document.getElementById("stat-completed-clients").innerText = "0";
+    document.getElementById("stat-global-accuracy").innerText = "-- %";
+    document.getElementById("stat-global-loss").innerText = "--";
+
+    document.getElementById("rounds-lifecycle-container").innerHTML = '<div class="empty-state">Loading round lifecycle...</div>';
+    document.getElementById("clients-table-body").innerHTML = '<tr><td colspan="10" class="empty-state">Loading clients...</td></tr>';
+    document.getElementById("event-feed-container").innerHTML = '<div class="empty-state">No events for this run.</div>';
+    allEvents = [];
+}
+
+async function loadExperiment(expId) {
+    if (!expId) return;
+    currentExperimentId = expId;
+    const select = document.getElementById("experiment-select");
+    if (select && select.value !== expId) {
+        select.value = expId;
+    }
+
+    resetDashboardState();
+
+    try {
+        const queryParam = `?experiment_id=${encodeURIComponent(expId)}`;
         const [expRes, roundsRes, clientsRes, metricsRes, eventsRes] = await Promise.all([
-            fetch("/api/experiment/current"),
-            fetch("/api/rounds"),
-            fetch("/api/clients"),
-            fetch("/api/metrics/global"),
-            fetch("/api/events?limit=100"),
+            fetch(`/api/experiments/${encodeURIComponent(expId)}`),
+            fetch(`/api/rounds${queryParam}`),
+            fetch(`/api/clients${queryParam}`),
+            fetch(`/api/metrics/global${queryParam}`),
+            fetch(`/api/events${queryParam}&limit=150`),
         ]);
 
         if (expRes.ok) {
@@ -264,6 +409,7 @@ async function fetchInitialState() {
         if (clientsRes.ok) {
             const clients = await clientsRes.json();
             renderClientsTable(clients);
+            loadClientsLossHistory(clients, expId);
         }
         if (metricsRes.ok) {
             const metrics = await metricsRes.json();
@@ -274,13 +420,63 @@ async function fetchInitialState() {
             renderEventFeed(allEvents);
         }
     } catch (err) {
+        console.error(`Error loading experiment ${expId}:`, err);
+    }
+}
+
+async function loadClientsLossHistory(clients, expId) {
+    if (!clients || clients.length === 0) return;
+    for (const c of clients) {
+        try {
+            const res = await fetch(`/api/metrics/clients/${encodeURIComponent(c.client_id)}?experiment_id=${encodeURIComponent(expId)}`);
+            if (res.ok) {
+                const metrics = await res.json();
+                metrics.forEach((m) => {
+                    appendClientMetric(c.client_id, m.round, m.loss);
+                });
+            }
+        } catch (e) {
+            console.debug(`Failed to fetch loss history for ${c.client_id}:`, e);
+        }
+    }
+}
+
+async function refreshGlobalMetrics(expId) {
+    try {
+        const res = await fetch(`/api/metrics/global?experiment_id=${encodeURIComponent(expId)}`);
+        if (res.ok) {
+            const metrics = await res.json();
+            populateGlobalMetrics(metrics);
+        }
+    } catch (e) {
+        console.debug("Failed to refresh global metrics:", e);
+    }
+}
+
+async function fetchInitialState() {
+    try {
+        const currExpRes = await fetch("/api/experiment/current");
+        let initialExpId = null;
+        if (currExpRes.ok) {
+            currentExperiment = await currExpRes.json();
+            initialExpId = currentExperiment.id;
+        }
+
+        await fetchExperimentsList(initialExpId);
+
+        if (initialExpId) {
+            await loadExperiment(initialExpId);
+        }
+    } catch (err) {
         console.error("Error fetching initial state:", err);
     }
 }
 
-async function fetchRounds() {
+async function fetchRounds(expId = null) {
+    const targetId = expId || currentExperimentId;
+    if (!targetId) return;
     try {
-        const res = await fetch("/api/rounds");
+        const res = await fetch(`/api/rounds?experiment_id=${encodeURIComponent(targetId)}`);
         if (res.ok) {
             const rounds = await res.json();
             renderRounds(rounds);
@@ -290,9 +486,11 @@ async function fetchRounds() {
     }
 }
 
-async function fetchClients() {
+async function fetchClients(expId = null) {
+    const targetId = expId || currentExperimentId;
+    if (!targetId) return;
     try {
-        const res = await fetch("/api/clients");
+        const res = await fetch(`/api/clients?experiment_id=${encodeURIComponent(targetId)}`);
         if (res.ok) {
             const clients = await res.json();
             renderClientsTable(clients);
@@ -302,10 +500,11 @@ async function fetchClients() {
     }
 }
 
-// 5. DOM RENDERING HELPERS
+// 7. DOM RENDERING HELPERS
 function renderExperiment(exp) {
     if (!exp) return;
-    document.getElementById("exp-id-display").innerText = exp.id || "cifar10_baseline_001";
+    const expDisplay = document.getElementById("exp-id-display");
+    if (expDisplay) expDisplay.innerText = exp.id || "cifar10_baseline_001";
     setExperimentStatus(exp.status || "IDLE");
     if (exp.strategy) {
         document.getElementById("stat-strategy-name").innerText = `Strategy: ${exp.strategy.toUpperCase()}`;
@@ -317,10 +516,13 @@ function setExperimentStatus(status) {
     const val = document.getElementById("stat-exp-status");
     const st = (status || "IDLE").toUpperCase();
 
-    pill.innerText = st;
-    val.innerText = st;
-
-    pill.className = `pill ${st.toLowerCase()}`;
+    if (pill) {
+        pill.innerText = st;
+        pill.className = `pill ${st.toLowerCase()}`;
+    }
+    if (val) {
+        val.innerText = st;
+    }
 }
 
 function updateRoundProgress(current, total) {
@@ -377,8 +579,7 @@ function renderRounds(rounds) {
 
 function formatStageClass(status) {
     if (!status) return "waiting";
-    const s = status.toLowerCase().replace(" ", "-");
-    return s;
+    return status.toLowerCase().replace(" ", "-");
 }
 
 function renderClientsTable(clients) {
@@ -423,7 +624,7 @@ function renderClientsTable(clients) {
     document.getElementById("stat-completed-clients").innerText = completedCount;
 }
 
-// 6. EVENT FEED
+// 8. EVENT FEED
 function renderEvent(ev) {
     const container = document.getElementById("event-feed-container");
     if (container.querySelector(".empty-state")) {
@@ -479,9 +680,9 @@ function formatTime(isoStr) {
     return d.toTimeString().split(" ")[0];
 }
 
-// 7. CHART UPDATES
+// 9. CHART UPDATES
 function populateGlobalMetrics(metrics) {
-    if (!metrics || metrics.length === 0) return;
+    if (!metrics || metrics.length === 0 || !globalMetricsChart) return;
 
     const labels = [];
     const accData = [];
@@ -504,6 +705,7 @@ function populateGlobalMetrics(metrics) {
 }
 
 function appendGlobalMetric(roundNum, accuracy, loss) {
+    if (!globalMetricsChart) return;
     const label = `R${roundNum}`;
     const accPct = Number((accuracy * 100).toFixed(2));
     const lossVal = Number(loss.toFixed(4));
@@ -524,6 +726,7 @@ function appendGlobalMetric(roundNum, accuracy, loss) {
 }
 
 function appendClientMetric(clientId, roundNum, loss) {
+    if (!clientLossChart) return;
     const label = `R${roundNum}`;
     if (!clientLossChart.data.labels.includes(label)) {
         clientLossChart.data.labels.push(label);
@@ -531,7 +734,7 @@ function appendClientMetric(clientId, roundNum, loss) {
 
     let dataset = clientLossChart.data.datasets.find((d) => d.label === clientId);
     if (!dataset) {
-        const clientColors = [COLORS.blue, COLORS.purple, COLORS.orange, COLORS.green];
+        const clientColors = [COLORS.blue, COLORS.purple, COLORS.orange, COLORS.green, COLORS.indigo];
         const color = clientColors[clientLossChart.data.datasets.length % clientColors.length];
         dataset = {
             label: clientId,
@@ -548,7 +751,145 @@ function appendClientMetric(clientId, roundNum, loss) {
     clientLossChart.update();
 }
 
-// 8. CLIENT MODAL
+// 10. SERVER LOGS VIEWER (Direct from volume)
+async function fetchServerLogs() {
+    const term = document.getElementById("server-logs-terminal");
+    const searchInput = document.getElementById("log-search-input");
+    const badge = document.getElementById("log-file-path-badge");
+    const autoScroll = document.getElementById("auto-scroll-logs-toggle");
+
+    const searchParam = searchInput && searchInput.value ? `&search=${encodeURIComponent(searchInput.value)}` : "";
+
+    try {
+        const res = await fetch(`/api/logs?limit=300${searchParam}`);
+        if (!res.ok) throw new Error("Could not fetch server logs");
+        const data = await res.json();
+
+        if (badge && data.log_path) {
+            badge.innerText = data.log_path;
+            badge.className = "status-badge in-progress";
+        }
+
+        if (!data.lines || data.lines.length === 0) {
+            term.innerHTML = '<div class="log-line" style="color: var(--text-muted);">No log entries found.</div>';
+            return;
+        }
+
+        term.innerHTML = data.lines
+            .map((line) => {
+                let cls = "";
+                if (line.includes("[ERROR]") || line.includes("Traceback") || line.includes("CRITICAL")) cls = "error";
+                else if (line.includes("[WARNING]")) cls = "warning";
+                else if (line.includes("Evaluation:") || line.includes("Accuracy=") || line.includes("Success")) cls = "success";
+                else if (line.includes("[INFO]")) cls = "info";
+
+                return `<div class="log-line ${cls}">${escapeHtml(line)}</div>`;
+            })
+            .join("");
+
+        if (autoScroll && autoScroll.checked) {
+            term.scrollTop = term.scrollHeight;
+        }
+    } catch (e) {
+        if (term) term.innerHTML = `<div class="log-line error">Failed to load logs: ${e.message}</div>`;
+    }
+}
+
+function escapeHtml(text) {
+    return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+// 11. RUN REPORTS & ACCURACY HISTORY VIEWER (Direct from volume)
+async function fetchRunReports() {
+    const tbody = document.getElementById("reports-table-body");
+    try {
+        const res = await fetch("/api/reports");
+        if (!res.ok) throw new Error("Failed to load reports");
+        const reports = await res.json();
+
+        if (!reports || reports.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No run reports saved in volume yet. Run training to generate reports.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = reports
+            .map((r) => {
+                const accStr = r.final_accuracy ? `${(r.final_accuracy * 100).toFixed(2)}%` : "--";
+                const lossStr = r.final_loss ? r.final_loss.toFixed(4) : "--";
+                const st = (r.status || "COMPLETED").toLowerCase();
+
+                return `
+                <tr>
+                    <td><strong>${r.experiment_id}</strong></td>
+                    <td>${r.experiment_name}</td>
+                    <td><span class="status-badge ${st}">${r.status}</span></td>
+                    <td>${r.completed_rounds}</td>
+                    <td><strong style="color: var(--accent-green);">${accStr}</strong></td>
+                    <td>${lossStr}</td>
+                    <td>
+                        <button class="btn-sm" onclick="viewReportDetail('${r.experiment_id}')">View Report</button>
+                    </td>
+                </tr>`;
+            })
+            .join("");
+
+        // Load the first (latest) report into detail viewer by default
+        if (reports.length > 0) {
+            viewReportDetail(reports[0].experiment_id);
+        }
+    } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="7" class="empty-state" style="color: var(--accent-red);">Error: ${e.message}</td></tr>`;
+    }
+}
+
+async function viewReportDetail(expId) {
+    const heading = document.getElementById("report-detail-heading");
+    const container = document.getElementById("report-markdown-container");
+    const runIdVal = document.getElementById("rep-run-id");
+    const finalAccVal = document.getElementById("rep-final-acc");
+    const finalLossVal = document.getElementById("rep-final-loss");
+    const completedRoundsVal = document.getElementById("rep-completed-rounds");
+
+    heading.innerText = `Run Report: ${expId}`;
+    container.innerHTML = "Loading report document...";
+
+    try {
+        const res = await fetch(`/api/reports/${encodeURIComponent(expId)}`);
+        if (!res.ok) throw new Error("Could not load report details");
+        const data = await res.json();
+
+        const rep = data.report || {};
+        runIdVal.innerText = rep.experiment_id || expId;
+        finalAccVal.innerText = rep.final_accuracy ? `${(rep.final_accuracy * 100).toFixed(2)}%` : "-- %";
+        finalLossVal.innerText = rep.final_loss ? rep.final_loss.toFixed(4) : "--";
+        completedRoundsVal.innerText = rep.completed_rounds || (rep.rounds ? rep.rounds.length : "--");
+
+        currentMarkdownReport = data.markdown || JSON.stringify(rep, null, 2);
+        container.innerText = currentMarkdownReport;
+    } catch (e) {
+        container.innerHTML = `<span style="color: var(--accent-red);">Error loading report: ${e.message}</span>`;
+    }
+}
+
+function copyReportMarkdown() {
+    if (currentMarkdownReport) {
+        navigator.clipboard.writeText(currentMarkdownReport);
+        const btn = document.getElementById("copy-report-btn");
+        if (btn) {
+            btn.innerText = "✅ Copied!";
+            setTimeout(() => {
+                btn.innerText = "📋 Copy Report";
+            }, 2000);
+        }
+    }
+}
+
+// 12. CLIENT MODAL
 async function showClientModal(clientId) {
     const modal = document.getElementById("client-modal");
     const title = document.getElementById("modal-client-title");
@@ -559,7 +900,8 @@ async function showClientModal(clientId) {
     modal.classList.remove("hidden");
 
     try {
-        const res = await fetch(`/api/clients/${clientId}`);
+        const query = currentExperimentId ? `?experiment_id=${encodeURIComponent(currentExperimentId)}` : "";
+        const res = await fetch(`/api/clients/${clientId}${query}`);
         if (!res.ok) throw new Error("Failed to load client details");
         const data = await res.json();
 
@@ -614,8 +956,18 @@ async function showClientModal(clientId) {
     }
 }
 
-// 9. EVENT LISTENERS
+// 13. EVENT LISTENERS
 function setupEventListeners() {
+    const expSelect = document.getElementById("experiment-select");
+    if (expSelect) {
+        expSelect.addEventListener("change", (e) => {
+            const selectedExp = e.target.value;
+            if (selectedExp) {
+                loadExperiment(selectedExp);
+            }
+        });
+    }
+
     document.getElementById("filter-severity").addEventListener("change", () => renderEventFeed(allEvents));
     document.getElementById("filter-client").addEventListener("change", () => renderEventFeed(allEvents));
     document.getElementById("clear-events-btn").addEventListener("click", () => {
@@ -623,6 +975,15 @@ function setupEventListeners() {
         document.getElementById("filter-client").value = "";
         renderEventFeed(allEvents);
     });
+
+    const searchInput = document.getElementById("log-search-input");
+    if (searchInput) {
+        searchInput.addEventListener("keyup", (e) => {
+            if (e.key === "Enter") {
+                fetchServerLogs();
+            }
+        });
+    }
 
     document.getElementById("modal-close-btn").addEventListener("click", () => {
         document.getElementById("client-modal").classList.add("hidden");

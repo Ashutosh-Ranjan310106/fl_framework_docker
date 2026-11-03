@@ -9,7 +9,18 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 
 from monitoring.app.database.models import Base
 
-DATABASE_PATH = os.getenv("MONITORING_DB_PATH", "monitoring/data/monitoring.db")
+def _resolve_db_path() -> str:
+    env_path = os.getenv("MONITORING_DB_PATH")
+    if env_path:
+        return env_path
+    if Path("/app/results").exists():
+        return "/app/results/monitoring.db"
+    if Path("results").exists():
+        return "results/monitoring.db"
+    return "monitoring/data/monitoring.db"
+
+
+DATABASE_PATH = _resolve_db_path()
 Path(DATABASE_PATH).parent.mkdir(parents=True, exist_ok=True)
 
 SQLALCHEMY_DATABASE_URL = f"sqlite:///{DATABASE_PATH}"

@@ -38,3 +38,6 @@ datasets/partitions/**/_tmp_*
 Thumbs.db
 .vscode/
 .idea/
+
+# Environment files
+.env

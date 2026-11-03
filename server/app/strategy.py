@@ -21,6 +21,7 @@ from flwr.server.strategy import FedAvg
 from server.app.event_publisher import EventPublisher
 from server.app.metrics_manager import MetricsManager
 from server.app.model_manager import ModelManager
+from server.app.report_generator import ReportGenerator
 from server.app.round_manager import RoundManager
 from shared.schemas.events import EventSeverity, EventType, RoundStageStatus
 
@@ -39,6 +40,7 @@ class MonitoredFedAvg(FedAvg):
         round_manager: RoundManager,
         model_manager: ModelManager,
         metrics_manager: MetricsManager,
+        report_generator: Optional[ReportGenerator] = None,
         fraction_fit: float = 1.0,
         fraction_evaluate: float = 1.0,
         min_fit_clients: int = 2,
@@ -60,7 +62,9 @@ class MonitoredFedAvg(FedAvg):
         self.round_manager = round_manager
         self.model_manager = model_manager
         self.metrics_manager = metrics_manager
+        self.report_generator = report_generator
         self.num_rounds = num_rounds
+        self.latest_round_clients: Dict[int, List[Dict[str, Any]]] = {}
 
     def configure_fit(
         self, server_round: int, parameters: Parameters, client_manager: ClientManager
@@ -87,11 +91,12 @@ class MonitoredFedAvg(FedAvg):
         # Standard client selection
         fit_configurations = super().configure_fit(server_round, parameters, client_manager)
 
-        # Inject server_round into config for each client
+        # Inject server_round and experiment_id into config for each client
         updated_configs = []
         for client, fit_ins in fit_configurations:
             config = dict(fit_ins.config)
             config["server_round"] = server_round
+            config["experiment_id"] = self.round_manager.experiment_id
             updated_configs.append((client, FitIns(fit_ins.parameters, config)))
 
         dist_duration = self.round_manager.update_stage("model_distribution", RoundStageStatus.COMPLETED)
@@ -201,7 +206,27 @@ class MonitoredFedAvg(FedAvg):
         if aggregated_parameters is not None:
             updated_ndarrays = parameters_to_ndarrays(aggregated_parameters)
             self.model_manager.set_parameters(updated_ndarrays)
-            self.model_manager.save_checkpoint(round_num=server_round, metrics=aggregated_metrics)
+            ckpt_path = self.model_manager.save_checkpoint(
+                round_num=server_round,
+                metrics=aggregated_metrics,
+                experiment_id=self.round_manager.experiment_id,
+            )
+            if self.report_generator:
+                self.report_generator.record_checkpoint(str(ckpt_path))
+
+        # Collect client details for run report
+        client_metrics_list = []
+        for client_proxy, fit_res in valid_results:
+            cid = getattr(client_proxy, "cid", "unknown_client")
+            cid_actual = fit_res.metrics.get("client_id", cid) if fit_res.metrics else cid
+            client_metrics_list.append({
+                "client_id": str(cid_actual),
+                "samples": fit_res.num_examples,
+                "loss": float(fit_res.metrics.get("loss", 0.0)) if fit_res.metrics and "loss" in fit_res.metrics else None,
+                "accuracy": float(fit_res.metrics.get("accuracy", 0.0)) if fit_res.metrics and "accuracy" in fit_res.metrics else None,
+                "duration_seconds": float(fit_res.metrics.get("duration_seconds", 0.0)) if fit_res.metrics and "duration_seconds" in fit_res.metrics else None,
+            })
+        self.latest_round_clients[server_round] = client_metrics_list
 
         return aggregated_parameters, aggregated_metrics
 
@@ -247,6 +272,21 @@ class MonitoredFedAvg(FedAvg):
             samples=num_samples,
             duration_seconds=eval_duration,
         )
+
+        # Record round metrics and generate volume reports
+        if self.report_generator and server_round > 0:
+            participating = len(self.latest_round_clients.get(server_round, []))
+            self.report_generator.record_round(
+                round_num=server_round,
+                loss=loss,
+                accuracy=accuracy,
+                samples=num_samples,
+                duration_seconds=eval_duration,
+                participating_clients=participating,
+                client_metrics=self.latest_round_clients.get(server_round, []),
+            )
+            is_final = server_round >= self.num_rounds
+            self.report_generator.generate_all_reports(status="COMPLETED" if is_final else "IN PROGRESS")
 
         # If round > 0, emit round completed
         if server_round > 0:

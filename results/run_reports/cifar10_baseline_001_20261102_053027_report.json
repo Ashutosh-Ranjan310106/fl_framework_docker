@@ -1,0 +1,42 @@
+{
+  "experiment_id": "cifar10_baseline_001_20261102_053027",
+  "experiment_name": "CIFAR10 Flower Baseline",
+  "strategy": "FedAvg",
+  "status": "IN PROGRESS",
+  "start_time": "2026-11-02T05:30:28.274736+00:00",
+  "end_time": null,
+  "total_rounds_configured": 3,
+  "completed_rounds": 1,
+  "final_accuracy": 0.2412,
+  "final_loss": 2.0901167198181154,
+  "rounds": [
+    {
+      "round": 1,
+      "loss": 2.0901167198181154,
+      "accuracy": 0.2412,
+      "samples": 10000,
+      "duration_seconds": 14.395917177200317,
+      "participating_clients": 2,
+      "client_metrics": [
+        {
+          "client_id": "client_002",
+          "samples": 5000,
+          "loss": 1.939163864994049,
+          "accuracy": 0.3051,
+          "duration_seconds": 67.98030662536621
+        },
+        {
+          "client_id": "client_001",
+          "samples": 5000,
+          "loss": 1.8013509411811828,
+          "accuracy": 0.354,
+          "duration_seconds": 69.89691662788391
+        }
+      ],
+      "timestamp": "2026-11-02T05:32:37.562331+00:00"
+    }
+  ],
+  "checkpoints": [
+    "/app/models/checkpoints/cifar10_baseline_001_20261102_053027_round_001.pt"
+  ]
+}

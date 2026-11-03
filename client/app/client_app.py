@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+import os
+from pathlib import Path
 import sys
 import time
 from typing import Dict, List, Tuple
@@ -23,6 +25,20 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger("client_app")
+
+# Add file handler for persistent volume logging
+log_dir = Path(os.getenv("LOG_DIR", "logs"))
+if log_dir.exists() or os.getenv("LOG_DIR"):
+    try:
+        log_dir.mkdir(parents=True, exist_ok=True)
+        file_handler = logging.FileHandler(str(log_dir / "client.log"), mode="a", encoding="utf-8")
+        file_handler.setFormatter(logging.Formatter(
+            "[%(asctime)s] [%(levelname)s] [Client-%(name)s]: %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        ))
+        logging.getLogger().addHandler(file_handler)
+    except Exception:
+        pass
 
 
 class FlowerClient(NumPyClient):
@@ -64,11 +80,14 @@ class FlowerClient(NumPyClient):
         return get_model_parameters(self.model)
 
     def fit(self, parameters: List, config: Dict[str, fl.common.Scalar]) -> Tuple[List, int, Dict]:
-        # Extract server round
+        # Extract server round and active experiment
         server_round = int(config.get("server_round", self.current_round + 1))
         self.current_round = server_round
 
-        logger.info(f"--- Client {self.config.client_id} starting Round {server_round} training ---")
+        if "experiment_id" in config and config["experiment_id"]:
+            self.publisher.experiment_id = str(config["experiment_id"])
+
+        logger.info(f"--- Client {self.config.client_id} starting Round {server_round} (Exp: {self.publisher.experiment_id}) ---")
         self.publisher.emit(
             event_type=EventType.CLIENT_TRAINING_STARTED,
             round_num=server_round,
@@ -100,6 +119,8 @@ class FlowerClient(NumPyClient):
                 data={"error": str(e)},
             )
             raise e
+
+        metrics["client_id"] = self.config.client_id
 
         logger.info(
             f"Client {self.config.client_id} finished Round {server_round}: "
@@ -156,9 +177,24 @@ app = ClientApp(client_fn=client_fn)
 def run_standalone_client():
     """Run client connecting over gRPC to server address with reconnect logic."""
     client_config = load_client_config()
+
+    # Discover active experiment ID from monitoring service if not explicitly set
+    active_exp_id = os.getenv("EXPERIMENT_ID")
+    if not active_exp_id and client_config.monitoring_url:
+        try:
+            import requests
+            resp = requests.get(f"{client_config.monitoring_url}/api/experiment/current", timeout=1.5)
+            if resp.status_code == 200:
+                data = resp.json()
+                if data and data.get("id"):
+                    active_exp_id = data["id"]
+        except Exception:
+            pass
+
     publisher = ClientEventPublisher(
         monitoring_url=client_config.monitoring_url,
         client_id=client_config.client_id,
+        experiment_id=active_exp_id or "cifar10_baseline_001",
         enabled=client_config.monitoring_enabled,
     )
 
