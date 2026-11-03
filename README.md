@@ -33,6 +33,8 @@ This framework is engineered as a foundational infrastructure for distributed ma
 4. [Prerequisites](#4-prerequisites)
 5. [Windows 11 + WSL2 + Docker Desktop Setup](#5-windows-11--wsl2--docker-desktop-setup)
 6. [Installation & Local Setup](#6-installation--local-setup)
+   - [6.1 First-Time Setup with Docker (Recommended)](#61-first-time-setup-with-docker-recommended)
+   - [6.2 Optional: Native Host Python 3.11 Setup (Without Docker)](#62-optional-native-host-python-311-setup-without-docker)
 7. [Docker Orchestration & Command Reference](#7-docker-orchestration--command-reference)
    - [7.1 Quick Commands Cheat Sheet](#71-quick-commands-cheat-sheet)
    - [7.2 Running the Unified Server & Monitoring Console](#72-running-the-unified-server--monitoring-console)
@@ -325,12 +327,58 @@ To run via Docker containers on Windows 11:
 
 ## 6. Installation & Local Setup
 
-1. **Clone and navigate to repository**:
-   ```powershell
-   cd c:\Users\rrpra\Documents\Github\fl_framework_docker
-   ```
+### 6.1 First-Time Setup with Docker (Recommended)
 
-2. **Set up Python 3.11 Environment**:
+Follow these steps immediately after cloning the repository to get the entire federated learning ecosystem running with Docker:
+
+#### 1. Clone & Enter Directory:
+```bash
+git clone https://github.com/rrpra/fl_framework_docker.git
+cd fl_framework_docker
+```
+
+#### 2. Initialize Environment Configuration (`.env`):
+* **Windows (PowerShell)**:
+  ```powershell
+  Copy-Item .env.example .env
+  ```
+* **Linux / macOS (Bash)**:
+  ```bash
+  cp .env.example .env
+  ```
+
+#### 3. Build Docker Images:
+```bash
+docker compose build
+```
+
+#### 4. Download Dataset & Generate Initial Partitions:
+Since large binary tensors (`.pt`) are omitted from git, generate them directly using the built container (no local Python installation required):
+```bash
+# Download original CIFAR-10 training & test sets:
+docker run --rm -v "${PWD}:/app" -w /app fl_server:latest python -c "from dataset_manager.dataset_loader import download_cifar10; download_cifar10()"
+
+# Generate 10-client IID partitions:
+docker run --rm -v "${PWD}:/app" -w /app fl_server:latest python -c "from dataset_manager.partition_manager import PartitionManager; PartitionManager().generate_partitions('iid', 10, 42)"
+```
+
+#### 5. Launch Server & Web Dashboard:
+```bash
+docker compose up -d server
+```
+* Open **`http://localhost:8000`** in your browser to verify the interactive dashboard is live and healthy.
+
+#### 6. Start Client Nodes:
+```bash
+# Launch 2 clients to begin training immediately:
+docker compose up --force-recreate client_001 client_002
+```
+
+---
+
+### 6.2 Optional: Native Host Python 3.11 Setup (Without Docker)
+
+1. **Set up Python 3.11 Environment**:
    ```powershell
    python -m venv venv
    .\venv\Scripts\Activate.ps1
@@ -338,14 +386,14 @@ To run via Docker containers on Windows 11:
    pip install -r requirements.txt
    ```
 
-3. **Verify or Generate Dataset Partitions**:
-   Ensure pre-generated CIFAR-10 partitions exist:
+2. **Verify or Generate Dataset Partitions Locally**:
    ```powershell
+   python -c "from dataset_manager.dataset_loader import download_cifar10; download_cifar10()"
    python -c "from dataset_manager.partition_manager import PartitionManager; PartitionManager().generate_partitions('iid', 10, 42)"
    ```
 
-4. **Run Automated Test Suite**:
-   Verify all 52 unit and integration tests across server, client, monitoring, and dataset manager:
+3. **Run Automated Test Suite**:
+   Verify all unit and integration tests across server, client, monitoring, and dataset manager:
    ```powershell
    $env:PYTHONPATH="."
    python -m pytest tests -v
