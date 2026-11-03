@@ -33,15 +33,25 @@ This framework is engineered as a foundational infrastructure for distributed ma
 4. [Prerequisites](#4-prerequisites)
 5. [Windows 11 + WSL2 + Docker Desktop Setup](#5-windows-11--wsl2--docker-desktop-setup)
 6. [Installation & Local Setup](#6-installation--local-setup)
-7. [Docker Orchestration Reference](#7-docker-orchestration-reference)
+7. [Docker Orchestration & Command Reference](#7-docker-orchestration--command-reference)
+   - [7.1 Quick Commands Cheat Sheet](#71-quick-commands-cheat-sheet)
+   - [7.2 Running the Unified Server & Monitoring Console](#72-running-the-unified-server--monitoring-console)
+   - [7.3 Running Different Numbers of Clients (2, 3, 5, 10 Clients)](#73-running-different-numbers-of-clients-2-3-5-10-clients)
+   - [7.4 Running External Clients (LAN, Wi-Fi, or Global IP)](#74-running-external-clients-lan-wi-fi-or-global-ip)
+   - [7.5 Container Inspection, Logs & Top Resources](#75-container-inspection-logs--top-resources)
+   - [7.6 Stopping, Cleaning Up & Recreating Containers](#76-stopping-cleaning-up--recreating-containers)
 8. [Terminal & CLI Orchestration Reference](#8-terminal--cli-orchestration-reference)
 9. [Live Monitoring Dashboard](#9-live-monitoring-dashboard)
 10. [REST API Documentation](#10-rest-api-documentation)
 11. [Inspecting Individual Clients](#11-inspecting-individual-clients)
 12. [Viewing Round Lifecycle & History](#12-viewing-round-lifecycle--history)
 13. [Stopping & Restarting Containers](#13-stopping--restarting-containers)
-14. [Scaling to Additional Clients](#14-scaling-to-additional-clients)
-15. [Dataset Partitions & Management](#15-dataset-partitions--management)
+14. [Scaling to Additional Clients & Participation Settings](#14-scaling-to-additional-clients--participation-settings)
+15. [Dataset Partitions & Management (Changing Datasets)](#15-dataset-partitions--management-changing-datasets)
+   - [15.1 Switching Active Dataset Partitions via .env](#151-switching-active-dataset-partitions-via-env)
+   - [15.2 Generating Heterogeneous Partitions via CLI](#152-generating-heterogeneous-partitions-via-cli)
+   - [15.3 Interactive Dataset Explorer (Streamlit)](#153-interactive-dataset-explorer-streamlit)
+   - [15.4 Adding a Custom Dataset (Format Specification)](#154-adding-a-custom-dataset-format-specification)
 16. [Logs & Model Checkpoints](#16-logs--model-checkpoints)
 17. [Troubleshooting Common Errors](#17-troubleshooting-common-errors)
 
@@ -253,7 +263,7 @@ In each federated training round:
      ```python
      parameters = get_model_parameters(model)
      ```
-4. **Asynchronous Non-Blocking Reporting**: Enqueues a telemetry payload to a background daemon thread that posts to `http://monitor:8000/api/internal/events` without blocking gRPC responses.
+4. **Asynchronous Non-Blocking Reporting**: Enqueues a telemetry payload to a background daemon thread that posts to `http://server:8000/api/internal/events` (or `http://127.0.0.1:8000/api/internal/events` locally) without blocking gRPC responses.
 
 ### 3.5 Global Federated Aggregation (`server/app/strategy.py`)
 
@@ -343,18 +353,162 @@ To run via Docker containers on Windows 11:
 
 ---
 
-## 7. Docker Orchestration Reference
+## 7. Docker Orchestration & Command Reference
 
-Docker Compose provides declarative orchestration of the entire federated learning ecosystem (monitoring service, central Flower server, and independent client containers) inside an isolated bridge network (`fl_network`).
+Docker Compose provides declarative orchestration of the federated learning ecosystem inside an isolated bridge network (`fl_network`). The central **`fl_server`** container serves both Flower FL gRPC on port `8080` and the interactive FastAPI Monitoring Dashboard on port `8000`, while client containers (`fl_client_001` through `fl_client_010`) run isolated PyTorch local training loops.
 
-### 7.1 Spin Up the Entire Network
-Build images and start all 5 containers in detached mode:
+---
+
+### 7.1 Quick Commands Cheat Sheet
+
+| Action | PowerShell / Windows Command | Linux / macOS Bash Command |
+|---|---|---|
+| **Build Images** | `docker compose build` | `docker compose build` |
+| **Start Server & Web Monitor** | `docker compose up -d server` | `docker compose up -d server` |
+| **Open Web Monitor** | Open browser to `http://localhost:8000` | Open browser to `http://localhost:8000` |
+| **Run 2 Clients** | `docker compose up --force-recreate client_001 client_002` | `docker compose up --force-recreate client_001 client_002` |
+| **Run 3 Clients** | `docker compose up --force-recreate client_001 client_002 client_003` | `docker compose up --force-recreate client_001 client_002 client_003` |
+| **Run 5 Clients** | `docker compose up --force-recreate client_001 client_002 client_003 client_004 client_005` | `docker compose up --force-recreate client_001 client_002 client_003 client_004 client_005` |
+| **Run 10 Clients** | `docker compose up --force-recreate client_001 client_002 client_003 client_004 client_005 client_006 client_007 client_008 client_009 client_010` | `docker compose up --force-recreate client_001 client_002 client_003 client_004 client_005 client_006 client_007 client_008 client_009 client_010` |
+| **Run Clients in Background (-d)** | `docker compose up -d --force-recreate client_001 client_002` | `docker compose up -d --force-recreate client_001 client_002` |
+| **Stream Server Logs** | `docker compose logs -f server` | `docker compose logs -f server` |
+| **Stream Client Logs** | `docker compose logs -f client_001` | `docker compose logs -f client_001` |
+| **Clean Up Finished Clients** | `docker compose rm -f client_001 client_002 client_003 client_004 client_005` | `docker compose rm -f client_001 client_002 client_003 client_004 client_005` |
+| **Stop All Containers** | `docker compose stop` | `docker compose stop` |
+| **Teardown Containers & Network** | `docker compose down` | `docker compose down` |
+| **Complete Teardown (+ Volumes)** | `docker compose down -v` | `docker compose down -v` |
+
+> [!IMPORTANT]
+> **Always include `--force-recreate` when starting clients!**  
+> In Docker, if a container has stopped from an earlier run and the Docker bridge network was refreshed, attempting to start the stopped container can fail with `network not found`. Passing `--force-recreate` guarantees fresh containers attached to the active network every time.
+
+---
+
+### 7.2 Running the Unified Server & Monitoring Console
+
+The unified central server container (`fl_server`) concurrently hosts:
+- **Port 8080 (TCP / gRPC)**: Flower SuperLink endpoint for client synchronization and model distribution.
+- **Port 8000 (HTTP / WebSockets)**: Interactive dark-mode dashboard, REST API, and telemetry streaming.
+- **Persistent Volumes**: `./logs` (server log files) and `./results` (SQLite DB and multi-format run reports).
+- **Continuous Mode**: Once training rounds conclude and reports are generated, the server automatically keeps its gRPC listener on port `8080` open so subsequent client runs can connect without restarting the container.
+
+#### Start the Server:
 ```bash
-docker compose up --build -d
+docker compose up -d server
 ```
-*Docker initializes the FastAPI monitoring service first, executes its health probe (`/api/health`), brings up the central Flower server once healthy, and subsequently launches `fl_client_001`, `fl_client_002`, and `fl_client_003`.*
 
-### 7.2 Inspect Container Status & Top Resources
+#### Check Server Health & Readiness:
+```bash
+# Verify health endpoint (returns 200 OK {"status": "healthy"})
+curl -s http://localhost:8000/api/health
+
+# Check container state
+docker compose ps
+```
+
+#### Access Web Dashboard:
+Open **`http://localhost:8000`** in any web browser to view live telemetry, loss/accuracy curves, volume server logs, and the run reports audit tab.
+
+---
+
+### 7.3 Running Different Numbers of Clients (2, 3, 5, 10 Clients)
+
+The [`docker-compose.yml`](file:///docker-compose.yml) file includes pre-configured services for **`client_001` through `client_010`**, each mapped to its isolated partition in `./datasets/partitions/` and independent log volume in `./logs/clients/`.
+
+#### Controlling Client Participation via `.env`:
+Before launching a run with a specific client count, configure how many clients Flower should wait for before starting Round 1. Set these in [`.env`](file:///.env):
+```env
+NUM_ROUNDS=3              # Number of federated rounds
+MIN_FIT_CLIENTS=5         # Minimum clients required to train per round
+MIN_AVAILABLE_CLIENTS=5   # Server will wait until 5 clients connect before starting Round 1
+```
+
+#### Example 1: Running with 2 Clients (Baseline)
+```bash
+docker compose up --force-recreate client_001 client_002
+```
+
+#### Example 2: Running with 3 Clients
+```bash
+docker compose up --force-recreate client_001 client_002 client_003
+```
+
+#### Example 3: Running with 5 Clients (Simultaneous)
+Ensure `.env` has `MIN_AVAILABLE_CLIENTS=5` and `MIN_FIT_CLIENTS=5`, then run:
+```bash
+docker compose up --force-recreate client_001 client_002 client_003 client_004 client_005
+```
+
+#### Example 4: Running with All 10 Clients (Full Partition Suite)
+Ensure `.env` has `MIN_AVAILABLE_CLIENTS=10` and `MIN_FIT_CLIENTS=10`, then run:
+```bash
+docker compose up --force-recreate client_001 client_002 client_003 client_004 client_005 client_006 client_007 client_008 client_009 client_010
+```
+
+#### Inline Shell Execution (Overriding Client Counts Dynamically):
+You can override participation parameters directly on the command line without modifying `.env`:
+
+```powershell
+# Windows PowerShell (Wait for 5 clients)
+$env:MIN_AVAILABLE_CLIENTS="5"; $env:MIN_FIT_CLIENTS="5"; docker compose up -d server
+docker compose up --force-recreate client_001 client_002 client_003 client_004 client_005
+```
+
+```bash
+# Linux / macOS Bash (Wait for 5 clients)
+MIN_AVAILABLE_CLIENTS=5 MIN_FIT_CLIENTS=5 docker compose up -d server
+docker compose up --force-recreate client_001 client_002 client_003 client_004 client_005
+```
+
+---
+
+### 7.4 Running External Clients (LAN, Wi-Fi, or Global IP)
+
+The framework supports distributed setups where the Flower server runs on one machine and federated clients run on other physical computers, edge devices, or cloud VMs.
+
+#### Scenario 1: Same Computer via Docker Compose (Default)
+In `.env`:
+```env
+SERVER_ADDRESS=server:8080
+MONITORING_URL=http://server:8000
+```
+Clients connect over Docker's internal DNS without traversing host firewalls.
+
+#### Scenario 2: External Client on Another PC (Same LAN / Wi-Fi)
+1. **On the Server Host (Windows Firewall)**:  
+   Open **PowerShell as Administrator** and add an inbound firewall rule for ports 8080 and 8000:
+   ```powershell
+   New-NetFirewallRule -DisplayName "Flower FL Server (8080 & 8000)" -Direction Inbound -LocalPort 8080,8000 -Protocol TCP -Action Allow -Profile Any
+   ```
+2. **Find Server IP**: Run `ipconfig` (Windows) or `hostname -I` (Linux) to find the server's LAN IP (e.g., `10.135.73.182`).
+3. **On the External Client PC**:  
+   Run the client Docker image pointing to the server's LAN IP:
+   ```bash
+   docker run --rm -it \
+     -e SERVER_ADDRESS="10.135.73.182:8080" \
+     -e MONITORING_URL="http://10.135.73.182:8000" \
+     -e CLIENT_ID="client_001" \
+     -v /path/to/partition:/app/data:ro \
+     fl_client:latest
+   ```
+
+#### Scenario 3: Global IP / Over the Public Internet
+Since LAN IPs (`10.x.x.x` or `192.168.x.x`) are not routable across the public internet:
+1. **Using ngrok (Zero-Config Reverse Tunnel - Recommended)**:
+   On the server machine, expose port 8080:
+   ```bash
+   ngrok tcp 8080
+   ```
+   ngrok provides a public forwarding endpoint (e.g. `0.tcp.ngrok.io:12345`). Set `SERVER_ADDRESS="0.tcp.ngrok.io:12345"` on any remote client anywhere in the world!
+2. **Using Tailscale / WireGuard**:
+   Install Tailscale on both server and client devices; use the server's 100.x.x.x Tailscale IP with zero router configuration.
+3. **Router Port Forwarding**:
+   Forward external TCP ports 8080 and 8000 on your router to the server's internal LAN IP, then use your public WAN IP.
+
+---
+
+### 7.5 Container Inspection, Logs & Top Resources
+
 Check state, health status, and port bindings:
 ```bash
 docker compose ps
@@ -363,44 +517,29 @@ Inspect process tree and resource consumption inside active containers:
 ```bash
 docker compose top
 ```
-
-### 7.3 Real-Time Multi-Service Log Streaming
-Stream aggregated logs from all services:
+Follow logs in real time:
 ```bash
-docker compose logs -f
-```
-Or follow logs for an individual service:
-```bash
-# Central Flower Server
+# Follow unified server logs
 docker compose logs -f server
 
-# FastAPI Monitoring & WebSocket service
-docker compose logs -f monitor
-
-# Individual federated clients
-docker compose logs -f client_001
-docker compose logs -f client_002
-docker compose logs -f client_003
+# Follow client logs
+docker compose logs -f client_001 client_002
 ```
 
-### 7.4 Execute Commands Inside Running Containers
-Inspect the internal state or test files inside a running container:
-```bash
-# Check client 001 partition data
-docker compose exec client_001 ls -la /app/data
+---
 
-# Run an ad-hoc health check from inside the network
-docker compose exec server curl -s http://monitor:8000/api/health
-```
+### 7.6 Stopping, Cleaning Up & Recreating Containers
 
-### 7.5 Stopping, Restarting, and Teardown
 ```bash
 # Stop all containers while preserving state and database
 docker compose stop
 
-# Restart a specific service (e.g. client or monitor)
+# Restart a specific service
+docker compose restart server
 docker compose restart client_001
-docker compose restart monitor
+
+# Remove stopped client containers
+docker compose rm -f client_001 client_002 client_003 client_004 client_005
 
 # Stop and remove all containers and network
 docker compose down
@@ -409,10 +548,9 @@ docker compose down
 docker compose down -v
 ```
 
-### 7.6 Docker Hub Image Registry
+### 7.7 Docker Hub Image Registry
 Container images for the framework components:
-- **FastAPI Monitoring Service**: [`ashutosh310106/fl_monitor:latest`](https://hub.docker.com/r/ashutosh310106/fl_monitor)
-- **Flower Central FL Server**: `ashutosh310106/fl_server:latest`
+- **Flower Central FL Server & Monitor**: `ashutosh310106/fl_server:latest`
 - **Federated Client Node**: `ashutosh310106/fl_client:latest`
 
 ---
@@ -680,77 +818,189 @@ docker compose stop
 docker compose restart client_001
 ```
 
-### Restart the monitoring service without interrupting FL:
+### Restart the unified server and web monitor:
 ```bash
-docker compose restart monitor
+docker compose restart server
 ```
-*The SQLite database in `./monitoring/data/monitoring.db` persists state across container restarts.*
+*The SQLite database in `./results/monitoring.db` persists state across container restarts.*
 
 ---
 
-## 14. Scaling to Additional Clients
+## 14. Scaling to Additional Clients & Participation Settings
 
-The architecture supports scaling to arbitrary numbers of clients without modifying core application code:
+The framework comes pre-configured with **10 ready-to-run client services** (`client_001` through `client_010`) in [`docker-compose.yml`](file:///docker-compose.yml), each connected to its respective partition and log volume.
 
-1. Add client service block to `docker-compose.yml`:
+### 14.1 Configuring Participation Counts in `.env`
+You can dynamically control how many clients Flower requires for training:
+
+```env
+# Total number of federated rounds to run:
+NUM_ROUNDS=3
+
+# Number of clients that must train and return updates per round:
+MIN_FIT_CLIENTS=5
+
+# Minimum clients connected to the server before Round 1 begins:
+MIN_AVAILABLE_CLIENTS=5
+```
+
+- When `MIN_AVAILABLE_CLIENTS` is met, Flower triggers `configure_fit()`.
+- If you launch 5 clients while `MIN_AVAILABLE_CLIENTS=2`, Flower will start Round 1 as soon as the first 2 clients connect, and the other 3 will join in Round 2.
+- To ensure **all 5 clients participate from Round 1**, always set `MIN_AVAILABLE_CLIENTS=5` and `MIN_FIT_CLIENTS=5`.
+
+### 14.2 Scaling Beyond 10 Clients (e.g., Adding `client_011`)
+To scale beyond 10 clients:
+1. Generate the partitions (e.g. for 20 clients):
+   ```bash
+   python -c "from dataset_manager.partition_manager import PartitionManager; PartitionManager().generate_partitions('iid', 20, 42)"
+   ```
+2. Append a new service block in `docker-compose.yml`:
    ```yaml
-   client_004:
+   client_011:
      build:
        context: .
        dockerfile: client/Dockerfile
-     container_name: fl_client_004
+     image: fl_client:latest
+     container_name: fl_client_011
      depends_on:
        server:
          condition: service_started
-       monitor:
-         condition: service_healthy
      environment:
-       - CLIENT_ID=client_004
+       - CLIENT_ID=client_011
        - CLIENT_ROLE=honest
        - PARTITION_PATH=/app/data
-       - SERVER_ADDRESS=server:8080
-       - MONITORING_URL=http://monitor:8000
+       - SERVER_ADDRESS=${SERVER_ADDRESS:-server:8080}
+       - MONITORING_URL=${MONITORING_URL:-http://server:8000}
        - LOCAL_EPOCHS=2
        - BATCH_SIZE=32
+       - LEARNING_RATE=0.001
+       - LOG_DIR=/app/logs
+       - PYTHONUNBUFFERED=1
      volumes:
-       - ./datasets/partitions/cifar10/iid/clients_10_seed_42/client_004:/app/data:ro
-       - ./logs/clients/client_004:/app/logs
+       - ${PARTITION_DIR:-./datasets/partitions/cifar10/iid/clients_10_seed_42}/client_011:/app/data:ro
+       - ./logs/clients/client_011:/app/logs
      networks:
        - fl_network
+     deploy:
+       resources:
+         limits:
+           cpus: "1.0"
+           memory: 1G
    ```
-
-2. Update `experiments/default.yaml` to configure `min_fit_clients` and `min_available_clients`:
-   ```yaml
-   federated_learning:
-     min_fit_clients: 4
-     min_available_clients: 4
-   ```
-
 3. Launch the new client:
    ```bash
-   docker compose up -d client_004
+   docker compose up --force-recreate client_011
    ```
 
 ---
 
-## 15. Dataset Partitions & Management
+## 15. Dataset Partitions & Management (Changing Datasets)
 
-The framework leverages pre-generated CIFAR-10 partitions:
+The framework includes an enterprise data management suite supporting pre-generated CIFAR-10 partitions and deterministic generators for evaluating federated learning algorithms under extreme non-IID conditions.
+
 - **Clean Training Set**: 50,000 samples stored in `datasets/original/cifar10/train/data.pt`.
 - **Isolated Test Set**: 10,000 samples in `datasets/original/cifar10/test/data.pt`, reserved exclusively for central server evaluation.
-- **Client Partition Format**: Stored as PyTorch serialized dictionaries:
+- **Client Partition Format**: Stored as PyTorch serialized dictionaries (`data.pt`):
   ```python
   {
-      "images": torch.Tensor(N, 3, 32, 32), # uint8
-      "labels": torch.Tensor(N,),           # int64
+      "images": torch.Tensor(N, 3, 32, 32), # uint8 (0-255)
+      "labels": torch.Tensor(N,),           # int64 (0-9)
       "sample_indices": torch.Tensor(N,)    # int64
   }
   ```
 
-To explore or generate new partitioning strategies (Dirichlet, Label Skew, Quantity Skew):
-```powershell
-python -c "from dataset_manager.partition_manager import PartitionManager; pm = PartitionManager(); pm.generate_partitions('dirichlet', 10, 42, {'alpha': 0.5})"
+---
+
+### 15.1 Switching Active Dataset Partitions via `.env`
+
+You can switch the active dataset partition strategy across all 10 client containers in **one line** without touching `docker-compose.yml`.
+
+Edit the `PARTITION_DIR` variable in [`.env`](file:///.env):
+
+```env
+# 1. Standard IID (Default - 10 balanced clients, uniform label distribution)
+PARTITION_DIR=./datasets/partitions/cifar10/iid/clients_10_seed_42
+
+# 2. Non-IID Dirichlet (Alpha = 0.5 - realistic class distribution skew)
+# PARTITION_DIR=./datasets/partitions/cifar10/dirichlet/clients_10_alpha_0_5_seed_42
+
+# 3. Non-IID Label Skew (2 classes per client - extreme non-IID partition)
+# PARTITION_DIR=./datasets/partitions/cifar10/label_skew/clients_10_classes_2_seed_42
+
+# 4. Non-IID Quantity Skew (Sample volume imbalance between 1,000 and 9,000 samples)
+# PARTITION_DIR=./datasets/partitions/cifar10/quantity_skew/clients_10_min1000_max9000_seed_42
 ```
+
+After modifying `PARTITION_DIR`, start the clients:
+```bash
+docker compose up --force-recreate client_001 client_002 client_003
+```
+Each container automatically mounts its assigned partition directory from the selected distribution strategy.
+
+---
+
+### 15.2 Generating Heterogeneous Partitions via CLI
+
+The built-in Partition Manager allows you to generate new partition configurations with custom client counts, random seeds, and statistical skews:
+
+```bash
+# 1. Download clean CIFAR-10 training & test datasets
+python -c "from dataset_manager.dataset_loader import download_cifar10; download_cifar10()"
+
+# 2. Generate IID partitions (10 clients, seed 42)
+python -c "from dataset_manager.partition_manager import PartitionManager; PartitionManager().generate_partitions('iid', 10, 42)"
+
+# 3. Generate Non-IID Dirichlet distribution with custom alpha
+# (alpha=0.1 = extreme class imbalance; alpha=0.5 = moderate skew; alpha=1.0 = mild skew)
+python -c "from dataset_manager.partition_manager import PartitionManager; PartitionManager().generate_partitions('dirichlet', 10, 42, {'alpha': 0.1})"
+
+# 4. Generate Non-IID Label Skew (e.g. 2 or 3 classes per client)
+python -c "from dataset_manager.partition_manager import PartitionManager; PartitionManager().generate_partitions('label_skew', 10, 42, {'classes_per_client': 2})"
+
+# 5. Generate Non-IID Quantity Skew (custom minimum and maximum sample bounds)
+python -c "from dataset_manager.partition_manager import PartitionManager; PartitionManager().generate_partitions('quantity_skew', 10, 42, {'min_samples': 500, 'max_samples': 7000})"
+```
+
+Each generated partition creates:
+- `client_001/data.pt`, `client_002/data.pt`, ...
+- `manifest.json`: SHA-256 integrity checksums for every client partition.
+- `partition_config.yaml`: Exact reproducibility configuration and parameters.
+- `statistics.csv`: Per-client sample counts and class distribution tables.
+
+---
+
+### 15.3 Interactive Dataset Explorer (Streamlit)
+
+Visualize class distributions, sample volume heatmaps, and dataset skew interactively in your browser:
+
+```bash
+streamlit run dataset_manager/app.py
+```
+This opens the Dataset Explorer on `http://localhost:8501`, allowing visual side-by-side comparison between IID, Dirichlet, Label Skew, and Quantity Skew splits.
+
+---
+
+### 15.4 Adding a Custom Dataset (Format Specification)
+
+To use your own custom dataset in place of CIFAR-10:
+1. Ensure image tensors are shape `(N, C, H, W)` and labels are shape `(N,)`.
+2. Format client partitions as serialized PyTorch dictionaries:
+   ```python
+   import torch
+   from pathlib import Path
+
+   # Save for client_001
+   partition_dir = Path("datasets/partitions/custom_dataset/client_001")
+   partition_dir.mkdir(parents=True, exist_ok=True)
+
+   torch.save({
+       "images": client_images,          # Tensor of shape (N, 3, 32, 32)
+       "labels": client_labels,          # Tensor of shape (N,)
+       "sample_indices": client_indices  # Tensor of shape (N,)
+   }, partition_dir / "data.pt")
+   ```
+3. Set `PARTITION_DIR=./datasets/partitions/custom_dataset` in `.env`.
+4. If image dimensions or classes differ from CIFAR-10 (3x32x32, 10 classes), update `server/app/model.py` and `experiments/default.yaml` accordingly.
 
 ---
 

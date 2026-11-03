@@ -1,136 +1,157 @@
 {
-  "experiment_id": "cifar10_baseline_001_20261102_055124",
+  "experiment_id": "cifar10_baseline_001_20261103_010744",
   "experiment_name": "CIFAR10 Flower Baseline",
   "strategy": "FedAvg",
   "status": "COMPLETED",
-  "start_time": "2026-11-02T05:51:24.899619+00:00",
-  "end_time": "2026-11-02T05:59:43.653007+00:00",
+  "start_time": "2026-11-03T01:07:45.342699+00:00",
+  "end_time": "2026-11-03T01:13:53.405060+00:00",
   "total_rounds_configured": 3,
   "completed_rounds": 3,
-  "final_accuracy": 0.5924,
-  "final_loss": 1.147778586959839,
+  "final_accuracy": 0.5948,
+  "final_loss": 1.1371846923828124,
   "rounds": [
     {
       "round": 1,
-      "loss": 2.019249789428711,
-      "accuracy": 0.3041,
+      "loss": 2.25306086769104,
+      "accuracy": 0.2201,
       "samples": 10000,
-      "duration_seconds": 14.800734758377075,
-      "participating_clients": 2,
+      "duration_seconds": 14.122648477554321,
+      "participating_clients": 5,
       "client_metrics": [
-        {
-          "client_id": "client_004",
-          "samples": 5000,
-          "loss": 1.8046577668190003,
-          "accuracy": 0.3658,
-          "duration_seconds": 73.84415316581726
-        },
         {
           "client_id": "client_002",
           "samples": 5000,
-          "loss": 1.8444454367637635,
-          "accuracy": 0.3458,
-          "duration_seconds": 76.59771752357483
+          "loss": 1.81423033285141,
+          "accuracy": 0.3504,
+          "duration_seconds": 89.61081504821777
+        },
+        {
+          "client_id": "client_004",
+          "samples": 5000,
+          "loss": 1.829791854286194,
+          "accuracy": 0.347,
+          "duration_seconds": 90.88704252243042
+        },
+        {
+          "client_id": "client_005",
+          "samples": 5000,
+          "loss": 1.8651210404396057,
+          "accuracy": 0.3274,
+          "duration_seconds": 87.02438926696777
+        },
+        {
+          "client_id": "client_001",
+          "samples": 5000,
+          "loss": 1.8013432144165038,
+          "accuracy": 0.3492,
+          "duration_seconds": 95.35525226593018
+        },
+        {
+          "client_id": "client_003",
+          "samples": 5000,
+          "loss": 1.8632204008102418,
+          "accuracy": 0.3391,
+          "duration_seconds": 95.91566729545593
         }
       ],
-      "timestamp": "2026-11-02T05:55:25.471267+00:00"
+      "timestamp": "2026-11-03T01:09:53.020624+00:00"
     },
     {
       "round": 2,
-      "loss": 1.3876070932388305,
-      "accuracy": 0.4957,
+      "loss": 1.360841219329834,
+      "accuracy": 0.5233,
       "samples": 10000,
-      "duration_seconds": 14.472216606140137,
+      "duration_seconds": 14.597151756286621,
       "participating_clients": 5,
       "client_metrics": [
         {
-          "client_id": "client_001",
-          "samples": 5000,
-          "loss": 1.5243920987129211,
-          "accuracy": 0.4405,
-          "duration_seconds": 88.34168457984924
-        },
-        {
-          "client_id": "client_002",
-          "samples": 5000,
-          "loss": 1.506167196559906,
-          "accuracy": 0.4383,
-          "duration_seconds": 102.92868328094482
-        },
-        {
           "client_id": "client_004",
           "samples": 5000,
-          "loss": 1.4842630844116211,
-          "accuracy": 0.4597,
-          "duration_seconds": 93.28403639793396
+          "loss": 1.5543035573005677,
+          "accuracy": 0.4228,
+          "duration_seconds": 78.38950824737549
         },
         {
           "client_id": "client_003",
           "samples": 5000,
-          "loss": 1.5395589748382568,
-          "accuracy": 0.4248,
-          "duration_seconds": 100.76557803153992
+          "loss": 1.62857127866745,
+          "accuracy": 0.3889,
+          "duration_seconds": 94.61688470840454
+        },
+        {
+          "client_id": "client_002",
+          "samples": 5000,
+          "loss": 1.6358591354370118,
+          "accuracy": 0.3815,
+          "duration_seconds": 88.54404950141907
+        },
+        {
+          "client_id": "client_001",
+          "samples": 5000,
+          "loss": 1.5779175904273988,
+          "accuracy": 0.4031,
+          "duration_seconds": 90.1531310081482
         },
         {
           "client_id": "client_005",
           "samples": 5000,
-          "loss": 1.5607725507736205,
-          "accuracy": 0.4219,
-          "duration_seconds": 94.02717900276184
+          "loss": 1.6182574362754822,
+          "accuracy": 0.385,
+          "duration_seconds": 90.61864590644836
         }
       ],
-      "timestamp": "2026-11-02T05:57:36.152954+00:00"
+      "timestamp": "2026-11-03T01:11:53.918906+00:00"
     },
     {
       "round": 3,
-      "loss": 1.147778586959839,
-      "accuracy": 0.5924,
+      "loss": 1.1371846923828124,
+      "accuracy": 0.5948,
       "samples": 10000,
-      "duration_seconds": 14.430514574050903,
+      "duration_seconds": 14.791524648666382,
       "participating_clients": 5,
       "client_metrics": [
         {
-          "client_id": "client_003",
+          "client_id": "client_004",
           "samples": 5000,
-          "loss": 1.3448854605674743,
-          "accuracy": 0.5098,
-          "duration_seconds": 95.49938201904297
+          "loss": 1.340426365661621,
+          "accuracy": 0.5109,
+          "duration_seconds": 83.59853744506836
         },
         {
           "client_id": "client_002",
           "samples": 5000,
-          "loss": 1.341606955909729,
-          "accuracy": 0.5049,
-          "duration_seconds": 99.5996515750885
+          "loss": 1.374259161567688,
+          "accuracy": 0.49,
+          "duration_seconds": 86.70209908485413
         },
         {
           "client_id": "client_005",
           "samples": 5000,
-          "loss": 1.3569348782539368,
-          "accuracy": 0.5043,
-          "duration_seconds": 82.54331922531128
-        },
-        {
-          "client_id": "client_004",
-          "samples": 5000,
-          "loss": 1.2999897807598113,
-          "accuracy": 0.5243,
-          "duration_seconds": 98.07742071151733
+          "loss": 1.3816395855903625,
+          "accuracy": 0.4852,
+          "duration_seconds": 88.05136466026306
         },
         {
           "client_id": "client_001",
           "samples": 5000,
-          "loss": 1.355634207725525,
-          "accuracy": 0.5078,
-          "duration_seconds": 71.82882404327393
+          "loss": 1.3584295134544373,
+          "accuracy": 0.5037,
+          "duration_seconds": 87.50479197502136
+        },
+        {
+          "client_id": "client_003",
+          "samples": 5000,
+          "loss": 1.388653757095337,
+          "accuracy": 0.4819,
+          "duration_seconds": 92.42303967475891
         }
       ],
-      "timestamp": "2026-11-02T05:59:43.648814+00:00"
+      "timestamp": "2026-11-03T01:13:53.400812+00:00"
     }
   ],
   "checkpoints": [
-    "/app/models/checkpoints/cifar10_baseline_001_20261102_055124_round_001.pt",
-    "/app/models/checkpoints/cifar10_baseline_001_20261102_055124_round_002.pt",
-    "/app/models/checkpoints/cifar10_baseline_001_20261102_055124_round_003.pt"
+    "/app/models/checkpoints/cifar10_baseline_001_20261103_010744_round_001.pt",
+    "/app/models/checkpoints/cifar10_baseline_001_20261103_010744_round_002.pt",
+    "/app/models/checkpoints/cifar10_baseline_001_20261103_010744_round_003.pt"
   ]
 }

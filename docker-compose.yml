@@ -66,7 +66,7 @@ services:
       - LOG_DIR=/app/logs
       - PYTHONUNBUFFERED=1
     volumes:
-      - ./datasets/partitions/cifar10/iid/clients_10_seed_42/client_001:/app/data:ro
+      - ${PARTITION_DIR:-./datasets/partitions/cifar10/iid/clients_10_seed_42}/client_001:/app/data:ro
       - ./logs/clients/client_001:/app/logs
     networks:
       - fl_network
@@ -97,7 +97,7 @@ services:
       - LOG_DIR=/app/logs
       - PYTHONUNBUFFERED=1
     volumes:
-      - ./datasets/partitions/cifar10/iid/clients_10_seed_42/client_002:/app/data:ro
+      - ${PARTITION_DIR:-./datasets/partitions/cifar10/iid/clients_10_seed_42}/client_002:/app/data:ro
       - ./logs/clients/client_002:/app/logs
     networks:
       - fl_network
@@ -128,7 +128,7 @@ services:
       - LOG_DIR=/app/logs
       - PYTHONUNBUFFERED=1
     volumes:
-      - ./datasets/partitions/cifar10/iid/clients_10_seed_42/client_003:/app/data:ro
+      - ${PARTITION_DIR:-./datasets/partitions/cifar10/iid/clients_10_seed_42}/client_003:/app/data:ro
       - ./logs/clients/client_003:/app/logs
     networks:
       - fl_network
@@ -159,7 +159,7 @@ services:
       - LOG_DIR=/app/logs
       - PYTHONUNBUFFERED=1
     volumes:
-      - ./datasets/partitions/cifar10/iid/clients_10_seed_42/client_004:/app/data:ro
+      - ${PARTITION_DIR:-./datasets/partitions/cifar10/iid/clients_10_seed_42}/client_004:/app/data:ro
       - ./logs/clients/client_004:/app/logs
     networks:
       - fl_network
@@ -190,7 +190,7 @@ services:
       - LOG_DIR=/app/logs
       - PYTHONUNBUFFERED=1
     volumes:
-      - ./datasets/partitions/cifar10/iid/clients_10_seed_42/client_005:/app/data:ro
+      - ${PARTITION_DIR:-./datasets/partitions/cifar10/iid/clients_10_seed_42}/client_005:/app/data:ro
       - ./logs/clients/client_005:/app/logs
     networks:
       - fl_network
@@ -221,7 +221,7 @@ services:
       - LOG_DIR=/app/logs
       - PYTHONUNBUFFERED=1
     volumes:
-      - ./datasets/partitions/cifar10/iid/clients_10_seed_42/client_006:/app/data:ro
+      - ${PARTITION_DIR:-./datasets/partitions/cifar10/iid/clients_10_seed_42}/client_006:/app/data:ro
       - ./logs/clients/client_006:/app/logs
     networks:
       - fl_network
@@ -252,7 +252,7 @@ services:
       - LOG_DIR=/app/logs
       - PYTHONUNBUFFERED=1
     volumes:
-      - ./datasets/partitions/cifar10/iid/clients_10_seed_42/client_007:/app/data:ro
+      - ${PARTITION_DIR:-./datasets/partitions/cifar10/iid/clients_10_seed_42}/client_007:/app/data:ro
       - ./logs/clients/client_007:/app/logs
     networks:
       - fl_network
@@ -283,7 +283,7 @@ services:
       - LOG_DIR=/app/logs
       - PYTHONUNBUFFERED=1
     volumes:
-      - ./datasets/partitions/cifar10/iid/clients_10_seed_42/client_008:/app/data:ro
+      - ${PARTITION_DIR:-./datasets/partitions/cifar10/iid/clients_10_seed_42}/client_008:/app/data:ro
       - ./logs/clients/client_008:/app/logs
     networks:
       - fl_network
@@ -314,7 +314,7 @@ services:
       - LOG_DIR=/app/logs
       - PYTHONUNBUFFERED=1
     volumes:
-      - ./datasets/partitions/cifar10/iid/clients_10_seed_42/client_009:/app/data:ro
+      - ${PARTITION_DIR:-./datasets/partitions/cifar10/iid/clients_10_seed_42}/client_009:/app/data:ro
       - ./logs/clients/client_009:/app/logs
     networks:
       - fl_network
@@ -345,7 +345,7 @@ services:
       - LOG_DIR=/app/logs
       - PYTHONUNBUFFERED=1
     volumes:
-      - ./datasets/partitions/cifar10/iid/clients_10_seed_42/client_010:/app/data:ro
+      - ${PARTITION_DIR:-./datasets/partitions/cifar10/iid/clients_10_seed_42}/client_010:/app/data:ro
       - ./logs/clients/client_010:/app/logs
     networks:
       - fl_network
